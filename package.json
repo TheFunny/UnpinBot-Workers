@@ -1,0 +1,25 @@
+{
+  "name": "unpinbot-workers",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram bot that automatically unpins auto-forwarded channel posts in connected discussion groups, running on Cloudflare Workers",
+  "license": "MIT",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0"
+  },
+  "devDependencies": {
+    "@grammyjs/types": "^5.0.0",
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1",
+    "wrangler": "^4.137.0"
+  }
+}

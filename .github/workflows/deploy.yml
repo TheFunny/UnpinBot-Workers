@@ -1,0 +1,25 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    # Opt-in per repository: set the DEPLOY_ENABLED repository variable to
+    # "1" once the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets
+    # exist. Until then pushes only run CI.
+    if: vars.DEPLOY_ENABLED == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

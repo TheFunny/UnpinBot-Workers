@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "unpinbot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-21",
+  "observability": { "enabled": true },
+  // Paste the id printed by `npx wrangler d1 create unpinbot`.
+  // Prefer a custom domain route (exact-match TLS cert): Telegram may reject
+  // the wildcard *.workers.dev certificate.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "unpinbot",
+      "database_id": "REPLACE_ME_AFTER_D1_CREATE"
+    }
+  ]
+}
