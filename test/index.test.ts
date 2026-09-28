@@ -35,4 +35,19 @@ describe("endpoint gates", () => {
   it("404s everything else", async () => {
     expect((await worker.fetch(req("/nope"), env())).status).toBe(404);
   });
+
+  it("answers /health without secrets or a body", async () => {
+    const bare = env({
+      WEBHOOK_SECRET: undefined as unknown as string,
+      ADMIN_KEY: undefined as unknown as string,
+    });
+    const res = await worker.fetch(
+      new Request("https://bot.example/health"),
+      bare,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("ok");
+    // GET only: a POST there is still a 404, not a second way in.
+    expect((await worker.fetch(req("/health"), env())).status).toBe(404);
+  });
 });

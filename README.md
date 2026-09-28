@@ -9,6 +9,7 @@ How it fits together:
 - Telegram pushes every update to `POST /tg`. The `X-Telegram-Bot-Api-Secret-Token` header is checked before anything else (grammY verifies it again), so garbage requests never reach Telegram.
 - `POST /register` (header `X-Register-Key`) is an idempotent one-shot setup: state table DDL, optional state import, `setWebhook`, command menus, descriptions, and default admin rights.
 - Enabled chats live in one D1 table — one `SELECT` per incoming channel post, writes only on `/enable`, `/disable`, and group migrations.
+- `GET /health` is a liveness probe: it answers `200 ok` without touching Telegram or D1, so an uptime check keeps working even when the bot token or webhook secret is misconfigured.
 
 ## Requirement
 

@@ -65,6 +65,16 @@ export default {
       return handleRegister(request, env, bootFor(env));
     }
 
+    // Liveness only, deliberately: no Telegram round trip and no D1 read,
+    // so the answer says the Worker is serving and nothing more. It exists
+    // so an uptime probe has a path that depends on neither the bot token
+    // nor the webhook secret, whose misconfiguration this project has
+    // already shipped once. Add a readiness signal here if you ever need
+    // to know the bot can actually serve traffic.
+    if (pathname === "/health" && request.method === "GET") {
+      return new Response("ok");
+    }
+
     return new Response("Not Found", { status: 404 });
   },
 };
