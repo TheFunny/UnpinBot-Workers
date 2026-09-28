@@ -7,13 +7,17 @@ import { GrammyError } from "grammy";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  autoUnpin,
   botCanUnpin,
   classify,
   isAutomaticForward,
   isPrivileged,
   migrationPair,
+  myChatMember,
   routeMessage,
 } from "../src/unpin";
+import { insert } from "../src/state";
+import en from "../src/i18n/en.json";
 import { fakeD1 } from "./fake-d1";
 
 const message = (json: string): Message => JSON.parse(json) as Message;
@@ -213,5 +217,144 @@ describe("message routing", () => {
     const fallthrough = vi.fn(next);
     await routeMessage(ctx, { DB: db } as unknown as Env, fallthrough);
     expect(fallthrough).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("auto-unpin", () => {
+  const OLD_ID = -1001;
+  const NEW_ID = -1002;
+  const autoForward = (chatId: number): Message =>
+    message(
+      `{"chat":{"id":${chatId},"type":"supergroup"},"message_id":7,"date":1,
+        "is_automatic_forward":true}`,
+    );
+
+  /** An auto-forward whose unpin throws each queued error in turn. */
+  function forwardIn(
+    chatId: number,
+    errors: GrammyError[],
+  ): {
+    ctx: Context;
+    unpin: ReturnType<typeof vi.fn>;
+  } {
+    const unpin = vi.fn(async () => {
+      throw errors.shift();
+    });
+    return {
+      ctx: {
+        message: autoForward(chatId),
+        api: { unpinChatMessage: unpin },
+      } as unknown as Context,
+      unpin,
+    };
+  }
+
+  it("does nothing in a chat nobody enabled", async () => {
+    const { db } = fakeD1();
+    const { ctx, unpin } = forwardIn(OLD_ID, []);
+    await autoUnpin(ctx, { DB: db } as unknown as Env);
+    expect(unpin).not.toHaveBeenCalled();
+  });
+
+  it("follows the chat across a migration and unpins on the new id", async () => {
+    const { db, rows } = fakeD1();
+    await insert(db, OLD_ID);
+    const { ctx, unpin } = forwardIn(OLD_ID, [
+      apiError("Bad Request: chat not found", { migrate_to_chat_id: NEW_ID }),
+    ]);
+    await autoUnpin(ctx, { DB: db } as unknown as Env);
+    expect(unpin.mock.calls).toEqual([
+      [OLD_ID, 7],
+      [NEW_ID, 7],
+    ]);
+    expect(rows.has(OLD_ID)).toBe(false);
+    expect(rows.has(NEW_ID)).toBe(true);
+  });
+
+  it("stops chasing a chat that migrates a second time", async () => {
+    // One follow-up is the whole budget: a telegram-side loop must not turn
+    // into an unbounded chase, and the first move is left standing.
+    const { db, rows } = fakeD1();
+    await insert(db, OLD_ID);
+    const { ctx, unpin } = forwardIn(OLD_ID, [
+      apiError("Bad Request: chat not found", { migrate_to_chat_id: NEW_ID }),
+      apiError("Bad Request: chat not found", { migrate_to_chat_id: -1003 }),
+    ]);
+    await autoUnpin(ctx, { DB: db } as unknown as Env);
+    expect(unpin).toHaveBeenCalledTimes(2);
+    expect(rows.has(NEW_ID)).toBe(true);
+    expect(rows.has(-1003)).toBe(false);
+  });
+});
+
+describe("the bot's own rights changing", () => {
+  // The fixture chat's real id — the handler works off upd.chat.id, not a
+  // constant of our own.
+  const CHAT_ID = chat("supergroup").id;
+
+  function rightsChanged(
+    kind: string,
+    next: ChatMember,
+  ): {
+    ctx: Context;
+    sendMessage: ReturnType<typeof vi.fn>;
+    getChat: ReturnType<typeof vi.fn>;
+  } {
+    const sendMessage = vi.fn(async () => true);
+    // A removal or a revoked right must not turn into a getChat that can
+    // fail for good and be read as a transient error.
+    const getChat = vi.fn(async () => {
+      throw new Error("getChat must not be called here");
+    });
+    return {
+      ctx: {
+        myChatMember: {
+          chat: chat(kind),
+          new_chat_member: next,
+          from: { id: 5, is_bot: true, language_code: "en" },
+        },
+        api: { sendMessage, getChat },
+      } as unknown as Context,
+      sendMessage,
+      getChat,
+    };
+  }
+
+  it("disables the chat and announces it when the pin right is revoked", async () => {
+    const { db, rows } = fakeD1();
+    await insert(db, CHAT_ID);
+    const { ctx, sendMessage } = rightsChanged("supergroup", admin(false));
+    await myChatMember(ctx, { DB: db } as unknown as Env);
+    expect(rows.has(CHAT_ID)).toBe(false);
+    expect(sendMessage.mock.calls).toEqual([[CHAT_ID, en.error.rights_revoked]]);
+  });
+
+  it("keeps the chat enabled while the rights hold", async () => {
+    const { db, rows } = fakeD1();
+    await insert(db, CHAT_ID);
+    const { ctx, sendMessage } = rightsChanged("supergroup", admin(true));
+    await myChatMember(ctx, { DB: db } as unknown as Env);
+    expect(rows.has(CHAT_ID)).toBe(true);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("says nothing about a chat that was never enabled", async () => {
+    const { db, rows } = fakeD1();
+    const { ctx, sendMessage } = rightsChanged("supergroup", admin(false));
+    await myChatMember(ctx, { DB: db } as unknown as Env);
+    expect(rows.size).toBe(0);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("disables a basic group the bot was removed from, without asking Telegram", async () => {
+    const { db, rows } = fakeD1();
+    await insert(db, CHAT_ID);
+    const { ctx, sendMessage, getChat } = rightsChanged("group", member({ status: "kicked" }));
+    await myChatMember(ctx, { DB: db } as unknown as Env);
+    expect(getChat).not.toHaveBeenCalled();
+    expect(rows.has(CHAT_ID)).toBe(false);
+    // Kicked means the bot can no longer speak in the chat; the disable
+    // still stands, only the announcement is dropped.
+    expect(sendMessage.mock.calls).toEqual([[CHAT_ID, en.error.rights_revoked]]);
   });
 });
