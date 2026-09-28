@@ -61,7 +61,10 @@ export function createBot(env: Env): UnpinBot {
   // The one way an update is handed back instead: a request that outruns
   // the webhook timeout never reaches this handler, and answers 5xx so
   // Telegram redelivers it (see the note on withRetry).
-  bot.catch((err) => console.error(`update handler error: ${err.error}`));
+  // The value is logged as its own argument, the way grammY's own handler
+  // does: interpolating it stringified whatever a middleware threw, and a
+  // throw of `undefined` logged as the string "undefined" — no trace.
+  bot.catch((err) => console.error("update handler error:", err.error));
 
   return { bot, ensureInit };
 }
