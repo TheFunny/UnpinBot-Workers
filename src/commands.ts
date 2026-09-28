@@ -26,7 +26,7 @@ async function reply(ctx: Context, text: string): Promise<void> {
   });
 }
 
-/** Best-effort typing indicator — failures ignored. */
+/** Best-effort typing indicator. */
 async function typing(ctx: Context): Promise<void> {
   try {
     await ctx.api.sendChatAction(ctx.chat!.id, "typing");
