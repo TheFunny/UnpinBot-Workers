@@ -295,12 +295,18 @@ describe("the bot's own rights changing", () => {
   function rightsChanged(
     kind: string,
     next: ChatMember,
+    announce: "succeeds" | "fails" = "succeeds",
   ): {
     ctx: Context;
     sendMessage: ReturnType<typeof vi.fn>;
     getChat: ReturnType<typeof vi.fn>;
   } {
-    const sendMessage = vi.fn(async () => true);
+    // A removed bot cannot post in the chat it was removed from: the
+    // announcement still has to be attempted, and its failure swallowed.
+    const sendMessage = vi.fn(async () => {
+      if (announce === "fails") throw new Error("Forbidden: bot was kicked");
+      return true;
+    });
     // A removal or a revoked right must not turn into a getChat that can
     // fail for good and be read as a transient error.
     const getChat = vi.fn(async () => {
@@ -346,15 +352,19 @@ describe("the bot's own rights changing", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("disables a basic group the bot was removed from, without asking Telegram", async () => {
+  it("disables a basic group the bot was removed from, whatever the announcement does", async () => {
     const { db, rows } = fakeD1();
     await insert(db, CHAT_ID);
-    const { ctx, sendMessage, getChat } = rightsChanged("group", member({ status: "kicked" }));
+    // Kicked in a basic group: the rights question answers itself, so no
+    // getChat (which would now fail for good), and the send cannot land.
+    const { ctx, sendMessage, getChat } = rightsChanged(
+      "group",
+      member({ status: "kicked" }),
+      "fails",
+    );
     await myChatMember(ctx, { DB: db } as unknown as Env);
     expect(getChat).not.toHaveBeenCalled();
     expect(rows.has(CHAT_ID)).toBe(false);
-    // Kicked means the bot can no longer speak in the chat; the disable
-    // still stands, only the announcement is dropped.
     expect(sendMessage.mock.calls).toEqual([[CHAT_ID, en.error.rights_revoked]]);
   });
 });
