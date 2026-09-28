@@ -189,10 +189,13 @@ export function classify(err: unknown): UnpinFailure {
 }
 
 /** Handler for automatically forwarded channel posts: unpins them in
- * enabled chats only. */
+ * enabled chats only. The read is retried like every Telegram call: it is
+ * the one place where a transient failure costs an update that never comes
+ * back, since the handler's throw is answered 200 and the post would stay
+ * pinned forever. */
 export async function autoUnpin(ctx: Context, env: Env): Promise<void> {
   const msg = ctx.message!;
-  if (!(await state.has(env.DB, msg.chat.id))) {
+  if (!(await withRetry(() => state.has(env.DB, msg.chat.id)))) {
     console.debug(`chat ${msg.chat.id} is not enabled; skipping unpin`);
     return;
   }
@@ -281,7 +284,10 @@ export async function myChatMember(ctx: Context, env: Env): Promise<void> {
   // undefined because it exists on every update context.
   const upd = ctx.myChatMember!;
   const chatId = upd.chat.id;
-  if (!(await state.has(env.DB, chatId))) return;
+  // Retried like the rest: an unreadable enabled set is a rights change
+  // that silently never happens, leaving a chat enabled after its pin
+  // right was revoked.
+  if (!(await withRetry(() => state.has(env.DB, chatId)))) return;
   const member = upd.new_chat_member;
   let canUnpin: boolean;
   if (member.status === "left" || member.status === "kicked") {

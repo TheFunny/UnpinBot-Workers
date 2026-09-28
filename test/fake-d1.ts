@@ -9,11 +9,15 @@ export interface FakeD1 {
   statements: string[];
   /** When true, inserts fail like an unavailable database. */
   failInserts: boolean;
+  /** How many reads fail like an overloaded database before one answers —
+   * the transient case the retry budget is there for. */
+  failReads: number;
 }
 
 export function fakeD1(): FakeD1 {
   const rows = new Set<number>();
   const fake: FakeD1 = {
+    failReads: 0,
     rows,
     statements: [],
     failInserts: false,
@@ -25,6 +29,10 @@ export function fakeD1(): FakeD1 {
   const statement = (sql: string, params: number[]) => ({
     first: async (): Promise<{ enabled: number } | null> => {
       fake.statements.push(sql);
+      if (fake.failReads > 0) {
+        fake.failReads -= 1;
+        throw new Error("D1_ERROR: overloaded");
+      }
       if (!sql.startsWith("SELECT")) {
         throw new Error(`fakeD1: first() on non-SELECT: ${sql}`);
       }

@@ -4,7 +4,7 @@
 import type { Context } from "grammy";
 import type { Chat, ChatMember, Message } from "@grammyjs/types";
 import { GrammyError } from "grammy";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   autoUnpin,
@@ -19,6 +19,10 @@ import {
 import { insert } from "../src/state";
 import en from "../src/i18n/en.json";
 import { fakeD1 } from "./fake-d1";
+
+// A retried D1 read runs its backoff on the fake clock; a real one would
+// spend seconds of wall time on every run of the suite.
+afterEach(() => vi.useRealTimers());
 
 const message = (json: string): Message => JSON.parse(json) as Message;
 
@@ -260,6 +264,21 @@ describe("auto-unpin", () => {
     const { ctx, unpin } = forwardIn(OLD_ID, []);
     await autoUnpin(ctx, { DB: db } as unknown as Env);
     expect(unpin).not.toHaveBeenCalled();
+  });
+
+  it("unpins anyway when the enabled read is briefly unavailable", async () => {
+    // A D1 blip here used to escape to bot.catch, which answers 200: the
+    // update is spent and the post stays pinned for good.
+    vi.useFakeTimers();
+    const fake = fakeD1();
+    await insert(fake.db, OLD_ID);
+    fake.failReads = 2;
+    const { ctx, unpin } = forwardIn(OLD_ID, []);
+    const pending = autoUnpin(ctx, { DB: fake.db } as unknown as Env);
+    await vi.advanceTimersByTimeAsync(1_500);
+    await pending;
+    expect(unpin.mock.calls).toEqual([[OLD_ID, 7]]);
+    expect(fake.rows.has(OLD_ID)).toBe(true);
   });
 
   it("follows the chat across a migration and unpins on the new id", async () => {
