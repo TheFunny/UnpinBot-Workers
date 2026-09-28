@@ -88,23 +88,20 @@ export async function enable(ctx: Context, lang: Lang, env: Env): Promise<void> 
   if (!(await ensureCallerAdmin(ctx, lang))) return;
 
   const chat = ctx.chat!;
-  // Supergroups expose the pin right on the bot's own admin record; basic
-  // groups only via the chat's default permissions (queried there alone).
-  let defaultCanPin = false;
-  if (chat.type === "group") {
-    try {
-      defaultCanPin = await basicGroupCanPin(ctx, chat);
-    } catch (err) {
-      console.error(`getChat failed in chat ${chat.id}: ${err}`);
-      await reply(ctx, lang.error.retry_later);
-      return;
-    }
-  }
+  // Two independent lookups, so they go out together instead of paying two
+  // round trips: the chat's default pin permission (basic groups only —
+  // supergroups carry the right on the bot's own admin record) and the
+  // bot's own membership. Both failures answer the same "try again later",
+  // so the log names both calls rather than guessing which one broke.
+  let defaultCanPin: boolean;
   let botMember: ChatMember;
   try {
-    botMember = await withRetry(() => ctx.api.getChatMember(chat.id, ctx.me.id));
+    [defaultCanPin, botMember] = await Promise.all([
+      chat.type === "group" ? basicGroupCanPin(ctx, chat) : false,
+      withRetry(() => ctx.api.getChatMember(chat.id, ctx.me.id)),
+    ]);
   } catch (err) {
-    console.error(`getChatMember(bot) failed in chat ${chat.id}: ${err}`);
+    console.error(`getChat/getChatMember(bot) failed in chat ${chat.id}: ${err}`);
     await reply(ctx, lang.error.retry_later);
     return;
   }
