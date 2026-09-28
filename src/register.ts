@@ -189,6 +189,10 @@ export async function handleRegister(
         language_code: code,
       }),
     );
+    // The catalogs carry no short string, so the long description goes out
+    // as the short one too — both stay well inside the 512-character limit.
+    // A dedicated `short_description` key is the fix if either catalog ever
+    // outgrows that.
     await step(`setMyShortDescription(${label})`, () =>
       unpin.bot.api.setMyShortDescription(lang.description, {
         language_code: code,
