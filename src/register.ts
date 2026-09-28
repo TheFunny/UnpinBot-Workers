@@ -62,7 +62,7 @@ export async function handleRegister(
   // are int64, and a wrong file would otherwise bind a string or a float.
   try {
     await ensureTable(env.DB);
-    report.table = "created";
+    report.table = "ready"; // CREATE TABLE IF NOT EXISTS: present either way
     const body = (await request.text()).trim();
     if (body.length > 0) {
       const parsed = JSON.parse(body) as { enabled_chats?: unknown };
