@@ -1,7 +1,13 @@
 name: Deploy
 
+# Deploys what CI already accepted, not whatever landed on main: as a
+# `push` trigger this workflow ran in parallel with CI and shipped red
+# builds. `workflow_run` fires once CI finishes, and the checkout pins
+# the exact commit CI tested.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 jobs:
@@ -9,10 +15,12 @@ jobs:
     # Opt-in per repository: set the DEPLOY_ENABLED repository variable to
     # "1" once the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets
     # exist. Until then pushes only run CI.
-    if: vars.DEPLOY_ENABLED == '1'
+    if: github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ENABLED == '1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

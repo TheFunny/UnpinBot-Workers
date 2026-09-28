@@ -93,7 +93,7 @@ Local note: outbound calls to `api.telegram.org` must be reachable from your net
 
 ## CI
 
-Every push and pull request runs the format check, typecheck, the test suite, a check that the generated `worker-configuration.d.ts` still matches `wrangler.jsonc`, and `npm audit`. Pushes to `main` also deploy — gated behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets, so nothing ships until you opt in.
+Every push and pull request runs the format check, typecheck, the test suite, a check that the generated `worker-configuration.d.ts` still matches `wrangler.jsonc`, and `npm audit`. Deploy is a follow-up to CI rather than a parallel job: it waits for CI to finish green on `main` and then deploys that exact commit, gated further behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets, so nothing ships until you opt in.
 
 ## License
 
