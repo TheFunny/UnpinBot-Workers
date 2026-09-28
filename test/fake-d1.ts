@@ -54,7 +54,12 @@ export function fakeD1(): FakeD1 {
 
   fake.db = {
     prepare(sql: string) {
-      return { bind: (...params: number[]) => statement(sql, params) };
+      // Unbound too: real D1 runs a parameterless statement directly
+      // (ensureTable's CREATE TABLE), which the fake used to reject.
+      return {
+        ...statement(sql, []),
+        bind: (...params: number[]) => statement(sql, params),
+      };
     },
     async batch(stmts: Array<{ run(): Promise<unknown> }>) {
       const results: unknown[] = [];

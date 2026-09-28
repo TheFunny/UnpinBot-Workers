@@ -72,12 +72,19 @@ export async function handleRegister(
     return respond(report, failures, null);
   }
 
-  const webhookUrl = `${new URL(request.url).origin}/tg`;
+  const url = new URL(request.url);
+  const webhookUrl = `${url.origin}/tg`;
+  // Dropping the queue is destructive and belongs to the first setup —
+  // a stale update discarded now is an auto-forward that stays pinned
+  // forever, and the documented way to re-run /register after a config
+  // change would hit it. Opt in explicitly with ?drop_pending=1.
+  const dropPending = url.searchParams.get("drop_pending") === "1";
+  report.drop_pending = dropPending;
   await step("setWebhook", () =>
     unpin.bot.api.setWebhook(webhookUrl, {
       secret_token: env.WEBHOOK_SECRET,
       allowed_updates: ["message", "my_chat_member"],
-      drop_pending_updates: true,
+      drop_pending_updates: dropPending,
     }),
   );
   await step("default_admin_rights", () =>
