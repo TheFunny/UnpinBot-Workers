@@ -204,10 +204,10 @@ describe("POST /register", () => {
     expect(report.imported).toBe(0);
   });
 
-  it("refuses an import larger than one invocation can query", async () => {
-    // 31 ids plus the DDL plus the 18 Bot API calls a cold /register makes
-    // is over the free plan's 50 subrequests, and the import runs first —
-    // so setWebhook would fail too, which is what the cap exists to stop.
+  it("refuses an import past the per-invocation ceiling", async () => {
+    // One id over the cap. What the number is worth is register.ts's
+    // budget arithmetic; this only pins that the ceiling is enforced
+    // before anything is written.
     const fake = fakeD1();
     const { status, report } = await register("", {
       body: JSON.stringify({

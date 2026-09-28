@@ -18,9 +18,10 @@ import type { UnpinBot } from "./bot";
  * So the whole /register call has to fit, not just its import: 18 go to
  * the Bot API (getMe, setWebhook, the default rights, and five calls for
  * each of the three language targets — 17 once the isolate is warm and
- * getMe is cached) and one to the table DDL, which leaves 30 with a
- * margin. Anything larger goes in through `wrangler d1 execute --file`,
- * which does not run inside an invocation.
+ * getMe is cached) and one to the table DDL, which leaves room for 31
+ * ids. This ceiling spends 30 of them and keeps one in hand. Anything
+ * larger goes in through `wrangler d1 execute --file`, which does not run
+ * inside an invocation.
  *
  * ponytail: Cloudflare does not document whether a `db.batch` of N
  * statements spends 1 subrequest or N, and this ceiling is safe either
