@@ -239,7 +239,9 @@ describe("auto-unpin", () => {
         "is_automatic_forward":true}`,
     );
 
-  /** An auto-forward whose unpin throws each queued error in turn. */
+  /** An auto-forward whose unpin throws each queued error in turn, then
+   * succeeds — a run that outlasts the queue is a success, not a throw of
+   * `undefined` the failure classifier would read as fatal. */
   function forwardIn(
     chatId: number,
     errors: GrammyError[],
@@ -248,7 +250,9 @@ describe("auto-unpin", () => {
     unpin: ReturnType<typeof vi.fn>;
   } {
     const unpin = vi.fn(async () => {
-      throw errors.shift();
+      const err = errors.shift();
+      if (err !== undefined) throw err;
+      return true;
     });
     return {
       ctx: {
@@ -266,9 +270,10 @@ describe("auto-unpin", () => {
     expect(unpin).not.toHaveBeenCalled();
   });
 
-  it("unpins anyway when the enabled read is briefly unavailable", async () => {
+  it("reaches the unpin when the enabled read is briefly unavailable", async () => {
     // A D1 blip here used to escape to bot.catch, which answers 200: the
-    // update is spent and the post stays pinned for good.
+    // update is spent and the post stays pinned for good. The unpin itself
+    // then succeeds, so this pins the whole path and not just the attempt.
     vi.useFakeTimers();
     const fake = fakeD1();
     await insert(fake.db, OLD_ID);
