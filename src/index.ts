@@ -21,7 +21,6 @@ function bootFor(env: Env): UnpinBot {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
-    const unpin = bootFor(env);
 
     if (pathname === "/tg" && request.method === "POST") {
       // Trust-boundary check first: wrong senders are rejected before any
@@ -39,6 +38,9 @@ export default {
         }
         return new Response("Unauthorized", { status: 401 });
       }
+      // Built here, not above the routing: a 404 or a rejected sender must
+      // not cost a Bot instance, and the trust boundary stays first.
+      const unpin = bootFor(env);
       // getMe must have succeeded before any handler runs (command matching
       // needs botInfo). Failing the request here hands the update back to
       // Telegram, which redelivers it later — the webhook-native equivalent
@@ -58,7 +60,7 @@ export default {
     }
 
     if (pathname === "/register" && request.method === "POST") {
-      return handleRegister(request, env, unpin);
+      return handleRegister(request, env, bootFor(env));
     }
 
     return new Response("Not Found", { status: 404 });
