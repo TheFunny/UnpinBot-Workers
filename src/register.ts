@@ -118,6 +118,9 @@ export async function handleRegister(
   await step("setWebhook", () =>
     unpin.bot.api.setWebhook(webhookUrl, {
       secret_token: env.WEBHOOK_SECRET,
+      // Two update types is the whole contract, not a preference: the
+      // handlers assume them. Widening this list is what would put channel
+      // posts (which carry no `ctx.message`) in front of them.
       allowed_updates: ["message", "my_chat_member"],
       drop_pending_updates: dropPending,
     }),

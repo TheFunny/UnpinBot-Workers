@@ -10,8 +10,10 @@ import { basicGroupCanPin, botCanUnpin, isPrivileged, withRetry } from "./unpin"
 
 /** Replies to the triggering message so the answer reads in context in busy
  * groups; the message may be gone by the time we answer, which the
- * allow_sending_without_reply flag tolerates. Commands only ever fire on
- * messages, so both lookups below are safe.
+ * allow_sending_without_reply flag tolerates. `ctx.message` is read twice
+ * below and is undefined on a channel post — grammY's command filter
+ * matches those too. The `allowed_updates` whitelist in register.ts is the
+ * only thing keeping them out, so widening it means widening this.
  *
  * Every string reaching here is a catalog entry sent as HTML, so a new
  * translation containing `<`, `>` or `&` has to carry the entities (or stay
