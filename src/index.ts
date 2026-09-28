@@ -11,12 +11,37 @@ import { keysMatch } from "./secret";
 // secrets are immutable per version, so the token is the whole key. Nothing
 // promises the same `env` object across requests, and a miss here costs a
 // getMe round trip on every update — including the bot's own init cache.
-let boot: { token: string; unpin: UnpinBot } | null = null;
-function bootFor(env: Env): UnpinBot {
+// The webhook handler is cached with it: it is a closure over that same
+// immutable env and over the Bot, so rebuilding it per request only reset
+// grammY's own init dedup (bot.init is cached inside the Bot regardless).
+interface Boot {
+  token: string;
+  unpin: UnpinBot;
+  tg: (request: Request) => Promise<Response>;
+}
+let boot: Boot | null = null;
+function bootFor(env: Env): Boot {
   if (boot === null || boot.token !== env.TELOXIDE_TOKEN) {
-    boot = { token: env.TELOXIDE_TOKEN, unpin: createBot(env) };
+    const unpin = createBot(env);
+    boot = {
+      token: env.TELOXIDE_TOKEN,
+      unpin,
+      tg: webhookCallback(unpin.bot, "cloudflare-mod", {
+        secretToken: env.WEBHOOK_SECRET,
+        // Stated, not inherited: "throw" is what turns a handler that
+        // outran the ceiling into a 5xx, and the 5xx is what hands the
+        // update back to Telegram. grammY's default says the same today;
+        // "return" would answer 200 and leave the post pinned forever.
+        onTimeout: "throw",
+        // A ceiling, not a promise that the handler fits inside it: a
+        // flood-wait sleep in withRetry overruns it deliberately, and the
+        // resulting 5xx is what hands the update back to Telegram (see the
+        // note on withRetry).
+        timeoutMilliseconds: 30_000,
+      }),
+    };
   }
-  return boot.unpin;
+  return boot;
 }
 
 export default {
@@ -38,7 +63,7 @@ export default {
       }
       // Built here, not above the routing: a 404 or a rejected sender must
       // not cost a Bot instance, and the trust boundary stays first.
-      const unpin = bootFor(env);
+      const { unpin, tg } = bootFor(env);
       // getMe must have succeeded before any handler runs (command
       // matching needs botInfo). Failing the request here hands the
       // update back to Telegram, which redelivers it later.
@@ -48,23 +73,11 @@ export default {
         console.error(`getMe failed: ${err}`);
         return new Response("Bot identity unavailable", { status: 503 });
       }
-      return webhookCallback(unpin.bot, "cloudflare-mod", {
-        secretToken: env.WEBHOOK_SECRET,
-        // Stated, not inherited: "throw" is what turns a handler that
-        // outran the ceiling into a 5xx, and the 5xx is what hands the
-        // update back to Telegram. grammY's default says the same today;
-        // "return" would answer 200 and leave the post pinned forever.
-        onTimeout: "throw",
-        // A ceiling, not a promise that the handler fits inside it: a
-        // flood-wait sleep in withRetry overruns it deliberately, and the
-        // resulting 5xx is what hands the update back to Telegram (see the
-        // note on withRetry).
-        timeoutMilliseconds: 30_000,
-      })(request);
+      return tg(request);
     }
 
     if (pathname === "/register" && request.method === "POST") {
-      return handleRegister(request, env, bootFor(env));
+      return handleRegister(request, env, bootFor(env).unpin);
     }
 
     // Liveness only, deliberately: no Telegram round trip and no D1 read,
