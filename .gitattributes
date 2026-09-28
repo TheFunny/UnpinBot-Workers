@@ -1,2 +1,5 @@
-# Shell scripts must stay LF: CRLF breaks the shebang inside containers.
-*.sh text eol=lf
+# Everything LF: prettier's default endOfLine is "lf" and CI enforces
+# `format:check`, so a CRLF working tree (core.autocrlf=true on Windows)
+# fails the gate on a file nobody edited. Shebangs survive it too — CRLF
+# inside a container breaks them.
+* text=auto eol=lf
