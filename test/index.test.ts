@@ -39,9 +39,16 @@ describe("endpoint gates", () => {
     });
     const tg = await worker.fetch(req("/tg"), bare);
     expect(tg.status).toBe(401);
+    // An unauthenticated probe is refused like any wrong key and told
+    // nothing: a 500 naming the unset secret was a configuration oracle.
     const reg = await worker.fetch(req("/register"), bare);
-    expect(reg.status).toBe(500);
-    expect(await reg.text()).toContain("ADMIN_KEY is not set");
+    expect(reg.status).toBe(403);
+    expect(await reg.text()).not.toContain("ADMIN_KEY");
+    // The operator who does hold the key still gets the setup error.
+    const unhooked = env({ WEBHOOK_SECRET: undefined as unknown as string });
+    const keyed = await worker.fetch(req("/register", { "X-Register-Key": "adm" }), unhooked);
+    expect(keyed.status).toBe(500);
+    expect(await keyed.text()).toContain("WEBHOOK_SECRET is not set");
   });
 
   it("404s everything else", async () => {

@@ -23,11 +23,23 @@ export async function handleRegister(
   env: Env,
   unpin: UnpinBot,
 ): Promise<Response> {
-  // The three secrets are the entire input to the setup below, so a missing
-  // one is a setup error rather than a wrong key: continuing would hand
-  // Telegram a webhook we can never authenticate, or no admin gate at all.
+  // The key first, always: an unauthenticated caller learns nothing about
+  // this deployment — not even which secrets are set. keysMatch fails
+  // closed, so an unset ADMIN_KEY answers 403 exactly like a wrong key,
+  // and the log line below is the only place the difference is recorded.
+  const key = request.headers.get("X-Register-Key") ?? "";
+  if (!keysMatch(key, env.ADMIN_KEY)) {
+    if (env.ADMIN_KEY === undefined) {
+      console.error("ADMIN_KEY is not set; run: wrangler secret put ADMIN_KEY");
+    }
+    return new Response("Forbidden", { status: 403 });
+  }
+  // The other two secrets are the remaining input to the setup below, so a
+  // missing one is a setup error rather than a wrong key: continuing would
+  // hand Telegram a webhook we can never authenticate. ADMIN_KEY is gone
+  // from this list — the gate above has already proved it is set.
   const missing: string[] = [];
-  for (const name of ["TELOXIDE_TOKEN", "WEBHOOK_SECRET", "ADMIN_KEY"] as const) {
+  for (const name of ["TELOXIDE_TOKEN", "WEBHOOK_SECRET"] as const) {
     if (env[name] === undefined) missing.push(name);
   }
   if (missing.length > 0) {
@@ -38,10 +50,6 @@ export async function handleRegister(
       },
       { status: 500 },
     );
-  }
-  const key = request.headers.get("X-Register-Key") ?? "";
-  if (!keysMatch(key, env.ADMIN_KEY)) {
-    return new Response("Forbidden", { status: 403 });
   }
 
   const report: Record<string, unknown> = {};

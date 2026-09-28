@@ -140,10 +140,15 @@ describe("POST /register", () => {
       const { status, report, setWebhook } = await register("", {
         secrets: { [name]: undefined },
       });
-      expect(status, name).toBe(500);
-      expect(report.failures, name).toEqual([
-        `${name} is not set; run: wrangler secret put ${name}`,
-      ]);
+      // An unset ADMIN_KEY cannot be named without telling an unauthenticated
+      // caller how this deployment is configured, so it stops at the gate;
+      // the other two are the operator's own setup error.
+      expect(status, name).toBe(name === "ADMIN_KEY" ? 403 : 500);
+      if (name !== "ADMIN_KEY") {
+        expect(report.failures, name).toEqual([
+          `${name} is not set; run: wrangler secret put ${name}`,
+        ]);
+      }
       expect(setWebhook, name).not.toHaveBeenCalled();
     }
   });
