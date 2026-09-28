@@ -99,9 +99,7 @@ export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
       const retryAfter = retryAfterSeconds(err);
       const delay = retryAfter !== null ? retryAfter * 1000 : (BACKOFF_MS[attempt] ?? 1000);
       attempt += 1;
-      const { promise, resolve } = Promise.withResolvers<void>();
-      setTimeout(resolve, delay);
-      await promise;
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), delay));
     }
   }
 }
