@@ -153,6 +153,19 @@ describe("POST /register", () => {
     }
   });
 
+  it("refuses a webhook secret Telegram would reject", async () => {
+    // base64 output carries + / =, and setWebhook answers SECRET_TOKEN_INVALID
+    // only after the import and every menu call have already run.
+    const { status, report, setWebhook } = await register("", {
+      secrets: { WEBHOOK_SECRET: "not/a/valid+secret=" },
+    });
+    expect(status).toBe(500);
+    expect(report.failures).toEqual([
+      "WEBHOOK_SECRET must be 1-256 characters of A-Z a-z 0-9 _ -; regenerate it with: openssl rand -hex 16",
+    ]);
+    expect(setWebhook).not.toHaveBeenCalled();
+  });
+
   it("imports an old state.json verbatim, idempotently", async () => {
     const fake = fakeD1();
     const body = JSON.stringify({ enabled_chats: [-100, 42] });

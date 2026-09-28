@@ -52,6 +52,23 @@ export async function handleRegister(
     );
   }
 
+  // Telegram accepts 1-256 characters of A-Z a-z 0-9 _ - as secret_token and
+  // nothing else, so `openssl rand -base64` is a trap: the rejection would
+  // otherwise surface only as a setWebhook failure, after every other step
+  // had already run. ADMIN_KEY and the token travel nowhere near Telegram's
+  // validator, so they are left alone.
+  if (!/^[A-Za-z0-9_-]{1,256}$/.test(env.WEBHOOK_SECRET)) {
+    return Response.json(
+      {
+        ok: false,
+        failures: [
+          "WEBHOOK_SECRET must be 1-256 characters of A-Z a-z 0-9 _ -; regenerate it with: openssl rand -hex 16",
+        ],
+      },
+      { status: 500 },
+    );
+  }
+
   const report: Record<string, unknown> = {};
   const failures: string[] = [];
   const step = async (name: string, fn: () => Promise<unknown>): Promise<void> => {
