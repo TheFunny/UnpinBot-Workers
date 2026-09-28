@@ -53,6 +53,15 @@ In `wrangler.jsonc`:
 
    `"ok": true` in the response means webhook, menus, rights, and import all succeeded. The endpoint is idempotent — re-run it after any config change.
 
+   One call imports at most **40** chat ids: D1 allows 50 queries per Worker invocation on the Free plan, and each id costs one query. A larger `state.json` goes in as slices — the endpoint is idempotent, so repeat the call until it stops reporting ids:
+
+   ```bash
+   jq -c '{enabled_chats: .enabled_chats[0:40]}' pers_data/state.json | curl -X POST \
+     -H "X-Register-Key: $ADMIN_KEY" https://your-host/register --data-binary @-
+   ```
+
+   Or skip HTTP for a big migration — `wrangler d1 execute unpinbot --file=chats.json` imports a list of `INSERT OR IGNORE` statements outside any invocation limit.
+
    The pending-update queue is **not** dropped by default: re-running /register would then discard queued auto-forwards, whose channel posts would stay pinned forever. Pass `?drop_pending=1` on the first setup (after switching from the long-polling release) to discard whatever the old bot had queued; the response echoes the flag as `drop_pending`.
 7. Stop the old Docker bot (or don't start it yet). While a webhook is set, `getUpdates` stops working. To roll back: `curl "https://api.telegram.org/bot$TOKEN/deleteWebhook"` and start the Docker release again.
 

@@ -186,16 +186,18 @@ describe("POST /register", () => {
     expect(report.imported).toBe(0);
   });
 
-  it("refuses an import larger than one request can carry", async () => {
+  it("refuses an import larger than one invocation can query", async () => {
+    // 41 ids already blow the free plan's 50-queries-per-invocation budget
+    // once the table DDL is counted, which is what the cap is there for.
     const fake = fakeD1();
     const { status, report } = await register("", {
       body: JSON.stringify({
-        enabled_chats: Array.from({ length: 10_001 }, (_, i) => -i),
+        enabled_chats: Array.from({ length: 41 }, (_, i) => -i),
       }),
       fake,
     });
     expect(status).toBe(502);
-    expect(String(report.storage)).toMatch(/over the 10000 limit/);
+    expect(String(report.storage)).toMatch(/over the 40 limit/);
     expect(fake.rows.size).toBe(0);
   });
 

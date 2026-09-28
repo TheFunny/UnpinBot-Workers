@@ -11,11 +11,13 @@ import { ALL, resolve } from "./i18n";
 import type { Lang } from "./i18n";
 import type { UnpinBot } from "./bot";
 
-/** Ceiling on one state import. A real state.json holds one row per
- * discussion group, so anything near this is a wrong file rather than a
- * big deployment — and it bounds the batch to a size a request can
- * actually deliver. */
-const MAX_IMPORT = 10_000;
+/** Ceiling on one state import. D1 allows 1000 queries per Worker
+ * invocation on the Workers Paid plan and 50 on the Free one (the plan
+ * the README recommends), and every imported id costs one query — so this
+ * ceiling is what keeps a single /register call inside the free-plan
+ * limit, with the table DDL as headroom. Anything larger goes in through
+ * `wrangler d1 execute --file`, which does not run inside an invocation. */
+const MAX_IMPORT = 40;
 
 export async function handleRegister(
   request: Request,
