@@ -63,11 +63,9 @@ export default {
     }
 
     // Liveness only, deliberately: no Telegram round trip and no D1 read,
-    // so the answer says the Worker is serving and nothing more. It exists
-    // so an uptime probe has a path that depends on neither the bot token
-    // nor the webhook secret, whose misconfiguration this project has
-    // already shipped once. Add a readiness signal here if you ever need
-    // to know the bot can actually serve traffic.
+    // so the answer says the Worker is serving and nothing more — an
+    // uptime probe that keeps working when the token or the webhook
+    // secret is misconfigured is the whole point.
     if (pathname === "/health" && request.method === "GET") {
       return new Response("ok");
     }

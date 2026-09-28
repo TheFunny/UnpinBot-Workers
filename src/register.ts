@@ -24,9 +24,8 @@ export async function handleRegister(
   unpin: UnpinBot,
 ): Promise<Response> {
   // The three secrets are the entire input to the setup below, so a missing
-  // one is a setup error rather than a wrong key. Continuing would hand
-  // Telegram a webhook we can never authenticate (unset WEBHOOK_SECRET:
-  // every genuine update 401s) or no admin gate at all.
+  // one is a setup error rather than a wrong key: continuing would hand
+  // Telegram a webhook we can never authenticate, or no admin gate at all.
   const missing: string[] = [];
   for (const name of ["TELOXIDE_TOKEN", "WEBHOOK_SECRET", "ADMIN_KEY"] as const) {
     if (env[name] === undefined) missing.push(name);
@@ -55,10 +54,9 @@ export async function handleRegister(
     }
   };
 
-  // Storage first: table plus an optional import. The old state.json can be
-  // posted verbatim — {"enabled_chats": [...]} — making migration a curl.
-  // The body is untrusted input, so nothing reaches D1 unvalidated: chat ids
-  // are int64, and a wrong file would otherwise bind a string or a float.
+  // Storage first: table plus an optional import — the old state.json can be
+  // posted verbatim. The body is untrusted, so nothing reaches D1 unvalidated:
+  // chat ids are int64, and a wrong file would bind a string or a float.
   try {
     await ensureTable(env.DB);
     const body = (await request.text()).trim();
@@ -158,12 +156,12 @@ export async function handleRegister(
       { command: "disable", description: lang.cmd.disable },
     ];
     const label = code ?? "default";
-    // The default scope is the one a private chat with the bot resolves to
-    // (Bot API order: chat → all_private_chats → default), and only the
-    // group and administrator scopes were ever set — so opening the bot in
-    // a private chat showed an empty menu. Basic commands only: enable and
-    // disable are refused outside a group and to non-admins, so listing
-    // them here would advertise commands the bot answers with a refusal.
+    // The default scope is the one a private chat resolves to (Bot API
+    // order: chat → all_private_chats → default), and only the group and
+    // administrator scopes were ever set — so opening the bot in a private
+    // chat showed an empty menu. Basic commands only: enable and disable
+    // are refused outside a group and to non-admins, so listing them here
+    // would advertise commands the bot answers with a refusal.
     await step(`setMyCommands(default,${label})`, () =>
       unpin.bot.api.setMyCommands(basic, {
         scope: { type: "default" },

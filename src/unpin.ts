@@ -73,9 +73,9 @@ function retryAfterSeconds(err: unknown): number | null {
 }
 
 /** Runs `fn` up to MAX_ATTEMPTS times, retrying transient failures: a 429
- * waits exactly as long as Telegram demands (sharing the attempt budget, so
- * the loop stays bounded), other transients wait the fixed backoff. Any
- * other error is returned immediately.
+ * waits exactly as long as Telegram demands (sharing the attempt budget),
+ * other transients wait the fixed backoff. Any other error is returned
+ * immediately.
  *
  * ponytail: the 429 sleep is deliberately uncapped, and that is what saves
  * the post. A flood-wait longer than the webhook's 30 s budget

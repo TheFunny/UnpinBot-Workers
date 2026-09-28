@@ -14,9 +14,8 @@ import { basicGroupCanPin, botCanUnpin, isPrivileged, withRetry } from "./unpin"
  * messages, so both lookups below are safe.
  *
  * Every string reaching here is a catalog entry sent as HTML, so a new
- * translation containing `<`, `>` or `&` has to carry the entities (or
- * stay plain text) — Telegram rejects the whole send with "can't parse
- * entities" otherwise, and the user sees nothing at all. */
+ * translation containing `<`, `>` or `&` has to carry the entities (or stay
+ * plain text) — Telegram rejects the whole send otherwise. */
 async function reply(ctx: Context, text: string): Promise<void> {
   await ctx.reply(text, {
     parse_mode: "HTML",
