@@ -329,8 +329,9 @@ describe("the bot's own rights changing", () => {
   it("disables the chat and announces it when the pin right is revoked", async () => {
     const { db, rows } = fakeD1();
     await insert(db, CHAT_ID);
-    const { ctx, sendMessage } = rightsChanged("supergroup", admin(false));
+    const { ctx, sendMessage, getChat } = rightsChanged("supergroup", admin(false));
     await myChatMember(ctx, { DB: db } as unknown as Env);
+    expect(getChat).not.toHaveBeenCalled(); // a supergroup carries the right itself
     expect(rows.has(CHAT_ID)).toBe(false);
     expect(sendMessage.mock.calls).toEqual([[CHAT_ID, en.error.rights_revoked]]);
   });
@@ -352,7 +353,7 @@ describe("the bot's own rights changing", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("disables a basic group the bot was removed from, whatever the announcement does", async () => {
+  it("disables a basic group the bot was removed from, even when it cannot say so", async () => {
     const { db, rows } = fakeD1();
     await insert(db, CHAT_ID);
     // Kicked in a basic group: the rights question answers itself, so no
