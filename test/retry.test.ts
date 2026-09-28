@@ -147,6 +147,30 @@ describe("withRetry", () => {
     expect(t.isDone()).toBe(true);
     await expect(t.p).resolves.toBe("ok");
   });
+
+  it("waits out a pause longer than the webhook budget rather than capping it", async () => {
+    // The uncapped sleep is the mechanism that saves the post: it overruns
+    // webhookCallback's 30 s timeout, which answers 5xx, so Telegram
+    // redelivers the update. Capping it would answer 200 instead and the
+    // auto-forward would stay pinned.
+    const long = apiError("Too Many Requests: retry after 120", 429, {
+      retry_after: 120,
+    });
+    let calls = 0;
+    const t = tracked(
+      withRetry(async () => {
+        calls++;
+        if (calls === 1) throw long;
+        return "ok";
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(119_999);
+    expect(calls).toBe(1);
+    expect(t.isDone()).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(calls).toBe(2);
+    await expect(t.p).resolves.toBe("ok");
+  });
 });
 
 describe("transientFailure", () => {
