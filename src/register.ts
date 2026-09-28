@@ -158,6 +158,18 @@ export async function handleRegister(
       { command: "disable", description: lang.cmd.disable },
     ];
     const label = code ?? "default";
+    // The default scope is the one a private chat with the bot resolves to
+    // (Bot API order: chat → all_private_chats → default), and only the
+    // group and administrator scopes were ever set — so opening the bot in
+    // a private chat showed an empty menu. Basic commands only: enable and
+    // disable are refused outside a group and to non-admins, so listing
+    // them here would advertise commands the bot answers with a refusal.
+    await step(`setMyCommands(default,${label})`, () =>
+      unpin.bot.api.setMyCommands(basic, {
+        scope: { type: "default" },
+        language_code: code,
+      }),
+    );
     await step(`setMyCommands(groups,${label})`, () =>
       unpin.bot.api.setMyCommands(basic, {
         scope: { type: "all_group_chats" },

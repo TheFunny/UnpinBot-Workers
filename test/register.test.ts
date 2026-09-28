@@ -17,10 +17,17 @@ interface WebhookOptions {
   allowed_updates: string[];
 }
 
+interface CommandMenu {
+  commands: { command: string }[];
+  scope: string;
+  language: string | undefined;
+}
+
 interface Registered {
   setWebhook: Mock<(url: string, options: WebhookOptions) => Promise<boolean>>;
   status: number;
   report: Record<string, unknown>;
+  menus: CommandMenu[];
 }
 
 function env(db: D1Database, secrets: Partial<Env> = {}): Env {
@@ -42,10 +49,24 @@ async function register(
   const setWebhook: Mock<(url: string, options: WebhookOptions) => Promise<boolean>> = vi.fn(
     async () => true,
   );
+  const menus: CommandMenu[] = [];
+  const setMyCommands: Mock<
+    (
+      commands: { command: string }[],
+      options: { scope?: { type: string }; language_code?: string },
+    ) => Promise<boolean>
+  > = vi.fn(async (commands, options) => {
+    menus.push({
+      commands,
+      scope: options.scope?.type ?? "default",
+      language: options.language_code,
+    });
+    return true;
+  });
   // Every other Bot API method register touches (default rights, the
-  // per-language menus and descriptions) is a no-op — but a real one: a
-  // missing method would surface as a failure in the report below.
-  const api = new Proxy({ setWebhook } as Record<string, unknown>, {
+  // descriptions) is a no-op — but a real one: a missing method would
+  // surface as a failure in the report below.
+  const api = new Proxy({ setWebhook, setMyCommands } as Record<string, unknown>, {
     get: (target, key) => (key in target ? target[key as string] : async () => true),
   });
   const unpin = {
@@ -70,7 +91,7 @@ async function register(
   } catch {
     // left empty; the status is the assertion for a rejected request
   }
-  return { setWebhook, status: response.status, report };
+  return { setWebhook, status: response.status, report, menus };
 }
 
 describe("POST /register", () => {
@@ -176,5 +197,40 @@ describe("POST /register", () => {
     expect(status).toBe(502);
     expect(String(report.storage)).toMatch(/over the 10000 limit/);
     expect(fake.rows.size).toBe(0);
+  });
+
+  it("registers a menu a private chat can actually see", async () => {
+    // A private chat with the bot resolves to the default scope (Bot API:
+    // chat → all_private_chats → default), so a bot whose default scope is
+    // unset shows an empty menu. Groups and administrators have their own
+    // scopes and must keep them.
+    const { menus } = await register();
+    // One pass per language, three scopes each, in the order the Bot API
+    // resolves them: default (private chats), groups, administrators.
+    expect(menus.map((m) => `${m.scope}:${m.language ?? "-"}`)).toEqual([
+      "default:en",
+      "all_group_chats:en",
+      "all_chat_administrators:en",
+      "default:zh",
+      "all_group_chats:zh",
+      "all_chat_administrators:zh",
+      "default:-",
+      "all_group_chats:-",
+      "all_chat_administrators:-",
+    ]);
+    const names = (scope: string) =>
+      menus.filter((m) => m.scope === scope).map((m) => m.commands.map((c) => c.command));
+    expect(names("default")).toEqual([
+      ["start", "help"],
+      ["start", "help"],
+      ["start", "help"],
+    ]);
+    expect(names("all_group_chats")).toEqual(names("default"));
+    // Only administrators are offered the privileged pair.
+    expect(names("all_chat_administrators")).toEqual([
+      ["start", "help", "enable", "disable"],
+      ["start", "help", "enable", "disable"],
+      ["start", "help", "enable", "disable"],
+    ]);
   });
 });
