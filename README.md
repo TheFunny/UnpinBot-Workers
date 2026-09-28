@@ -94,7 +94,11 @@ Local note: outbound calls to `api.telegram.org` must be reachable from your net
 
 ## CI
 
-Every push and pull request runs the format check, typecheck, the test suite, a check that the generated `worker-configuration.d.ts` still matches `wrangler.jsonc`, and `npm audit`. Deploy is a follow-up to CI rather than a parallel job: it waits for CI to finish green on `main` and then deploys that exact commit, gated further behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets, so nothing ships until you opt in.
+Every push and pull request runs the format check, typecheck, the test suite, a check that the generated `worker-configuration.d.ts` still matches `wrangler.jsonc`, and `npm audit`.
+
+Automated deployment has exactly one path, and it runs through `.github/workflows/deploy.yml`: it waits for CI to finish green on `main`, checks out that exact commit, and deploys it. (Step 5 above is the manual bootstrap; everything after that goes through the workflow.) It is gated behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets — with the variable unset, production only ever changes by hand.
+
+**Keep Cloudflare Workers Builds (the dashboard's Git integration) disconnected from this repository.** It is a second, independent path: `npm clean-install` → build → deploy on every push to `main`, without waiting for CI and without the `DEPLOY_ENABLED` gate. Nothing in the repository records whether it is connected, so reconnecting it from the dashboard silently restores ungated deploys — the exact failure the workflow above exists to prevent.
 
 ## License
 
