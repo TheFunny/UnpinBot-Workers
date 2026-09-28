@@ -15,8 +15,10 @@ type Next = () => Promise<void>;
 /** Maximum attempts for a Telegram call retried on transient failures. */
 export const MAX_ATTEMPTS = 3;
 
-/** Backoff before each retry after the first attempt; this array's length is
- * the attempt budget, so a miscount cannot silently change the sleeps. */
+/** Backoff before each retry after the first: one entry fewer than
+ * MAX_ATTEMPTS, because three attempts sleep twice. The `?? 1000` in
+ * withRetry covers a longer budget, so raising MAX_ATTEMPTS degrades to
+ * the last known sleep rather than to no wait at all. */
 const BACKOFF_MS = [500, 1000];
 
 /** Bot API descriptions that mean "the same request may well succeed if
