@@ -58,6 +58,9 @@ export function createBot(env: Env): UnpinBot {
   // Handler failures are logged and answered with 200, like the Rust
   // dispatcher consuming an endpoint error: the update is spent, and
   // withRetry already exhausted the transient budget inside the handler.
+  // The one way an update is handed back instead: a request that outruns
+  // the webhook timeout never reaches this handler, and answers 5xx so
+  // Telegram redelivers it (see the note on withRetry).
   bot.catch((err) => console.error(`update handler error: ${err.error}`));
 
   return { bot, ensureInit };

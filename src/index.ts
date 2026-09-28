@@ -53,8 +53,10 @@ export default {
       }
       return webhookCallback(unpin.bot, "cloudflare-mod", {
         secretToken: env.WEBHOOK_SECRET,
-        // Matches the Rust release's REQUEST_TIMEOUT: long enough for
-        // withRetry to sleep out a flood-wait inside this request.
+        // Matches the Rust release's REQUEST_TIMEOUT. It is a ceiling, not
+        // a promise that the handler fits inside it: a flood-wait sleep in
+        // withRetry overruns it deliberately, and the resulting 5xx is what
+        // hands the update back to Telegram (see the note on withRetry).
         timeoutMilliseconds: 30_000,
       })(request);
     }
