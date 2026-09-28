@@ -105,9 +105,9 @@ describe("unpin failure classification", () => {
     expect(classify(apiError("Bad Request: MESSAGE_ID_INVALID"))).toEqual({
       kind: "alreadyDone",
     });
-    expect(
-      classify(apiError("Bad Request: message to unpin not found")),
-    ).toEqual({ kind: "alreadyDone" });
+    expect(classify(apiError("Bad Request: message to unpin not found"))).toEqual({
+      kind: "alreadyDone",
+    });
     // An unrelated failure must not pass for a completed unpin; network
     // failures surface here only after withRetry exhausted its budget.
     expect(classify(apiError("Bad Request: nope"))).toEqual({ kind: "fatal" });
@@ -137,9 +137,7 @@ describe("auto-forward filter", () => {
     ).toBe(false);
     expect(
       isAutomaticForward(
-        message(
-          `{"chat":{"id":-1001,"type":"supergroup"},"message_id":3,"date":1,"text":"hi"}`,
-        ),
+        message(`{"chat":{"id":-1001,"type":"supergroup"},"message_id":3,"date":1,"text":"hi"}`),
       ),
     ).toBe(false);
   });

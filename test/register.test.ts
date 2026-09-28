@@ -39,8 +39,9 @@ async function register(
   init: { key?: string; body?: string; fake?: FakeD1; secrets?: Partial<Env> } = {},
 ): Promise<Registered> {
   const fake = init.fake ?? fakeD1();
-  const setWebhook: Mock<(url: string, options: WebhookOptions) => Promise<boolean>> =
-    vi.fn(async () => true);
+  const setWebhook: Mock<(url: string, options: WebhookOptions) => Promise<boolean>> = vi.fn(
+    async () => true,
+  );
   // Every other Bot API method register touches (default rights, the
   // per-language menus and descriptions) is a no-op — but a real one: a
   // missing method would surface as a failure in the report below.

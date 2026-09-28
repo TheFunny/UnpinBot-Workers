@@ -21,23 +21,16 @@ const SUPERGROUP_ID = -1001;
 type ChatKind = Chat["type"];
 
 /** A chat stub with just the fields the handlers read. */
-const chat = (type: ChatKind, id = SUPERGROUP_ID): Chat =>
-  ({ id, type }) as Chat;
+const chat = (type: ChatKind, id = SUPERGROUP_ID): Chat => ({ id, type }) as Chat;
 
 /** A membership record; the right under test rides along in `extra`. */
 const member = (status: ChatMember["status"], extra = {}): ChatMember =>
   ({ status, user: { id: BOT_ID }, ...extra }) as ChatMember;
 
-const user = (id: number): User =>
-  ({ id, is_bot: false, first_name: "u" }) as User;
+const user = (id: number): User => ({ id, is_bot: false, first_name: "u" }) as User;
 
 function apiError(description: string, error_code = 400): GrammyError {
-  return new GrammyError(
-    description,
-    { ok: false, error_code, description },
-    "testMethod",
-    {},
-  );
+  return new GrammyError(description, { ok: false, error_code, description }, "testMethod", {});
 }
 
 interface ContextOptions {
@@ -68,9 +61,7 @@ function context(options: ContextOptions = {}): {
       message_id: 1,
       chat: where,
       from,
-      ...(options.senderChatId === undefined
-        ? {}
-        : { sender_chat: { id: options.senderChatId } }),
+      ...(options.senderChatId === undefined ? {} : { sender_chat: { id: options.senderChatId } }),
     },
     reply: async (text: string) => {
       replies.push(text);
@@ -80,8 +71,7 @@ function context(options: ContextOptions = {}): {
       getChatMember: async (_chatId: number, userId: number) => {
         if (options.getChatMemberError) throw options.getChatMemberError;
         return userId === BOT_ID
-          ? (options.botMember ??
-            member("administrator", { can_pin_messages: true }))
+          ? (options.botMember ?? member("administrator", { can_pin_messages: true }))
           : (options.chatMember ?? member("administrator"));
       },
       getChat: async () => {

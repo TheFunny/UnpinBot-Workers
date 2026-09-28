@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import worker from "../src/index";
 
 const env = (over: Partial<Env> = {}): Env =>
-  ({ TELOXIDE_TOKEN: "0:t", WEBHOOK_SECRET: "hook", ADMIN_KEY: "adm", DB: {} as D1Database, ...over }) as Env;
+  ({
+    TELOXIDE_TOKEN: "0:t",
+    WEBHOOK_SECRET: "hook",
+    ADMIN_KEY: "adm",
+    DB: {} as D1Database,
+    ...over,
+  }) as Env;
 
 const req = (path: string, headers: Record<string, string> = {}) =>
   new Request(`https://bot.example${path}`, { method: "POST", headers });
@@ -14,7 +20,10 @@ describe("endpoint gates", () => {
   });
 
   it("rejects /tg with a wrong secret", async () => {
-    const res = await worker.fetch(req("/tg", { "X-Telegram-Bot-Api-Secret-Token": "nope" }), env());
+    const res = await worker.fetch(
+      req("/tg", { "X-Telegram-Bot-Api-Secret-Token": "nope" }),
+      env(),
+    );
     expect(res.status).toBe(401);
   });
 
@@ -24,7 +33,10 @@ describe("endpoint gates", () => {
   });
 
   it("never lets an unset secret authenticate", async () => {
-    const bare = env({ WEBHOOK_SECRET: undefined as unknown as string, ADMIN_KEY: undefined as unknown as string });
+    const bare = env({
+      WEBHOOK_SECRET: undefined as unknown as string,
+      ADMIN_KEY: undefined as unknown as string,
+    });
     const tg = await worker.fetch(req("/tg"), bare);
     expect(tg.status).toBe(401);
     const reg = await worker.fetch(req("/register"), bare);
@@ -41,10 +53,7 @@ describe("endpoint gates", () => {
       WEBHOOK_SECRET: undefined as unknown as string,
       ADMIN_KEY: undefined as unknown as string,
     });
-    const res = await worker.fetch(
-      new Request("https://bot.example/health"),
-      bare,
-    );
+    const res = await worker.fetch(new Request("https://bot.example/health"), bare);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("ok");
     // GET only: a POST there is still a 404, not a second way in.

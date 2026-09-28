@@ -34,9 +34,7 @@ export async function handleRegister(
     return Response.json(
       {
         ok: false,
-        failures: missing.map(
-          (name) => `${name} is not set; run: wrangler secret put ${name}`,
-        ),
+        failures: missing.map((name) => `${name} is not set; run: wrangler secret put ${name}`),
       },
       { status: 500 },
     );

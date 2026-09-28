@@ -36,10 +36,7 @@ const ERR_NOT_ENOUGH_RIGHTS = [
   "Bad Request: not enough rights to manage pinned messages in the chat",
 ];
 const ERR_CHAT_NOT_FOUND = "Bad Request: chat not found";
-const ERR_NOOP_UNPIN = [
-  "Bad Request: MESSAGE_ID_INVALID",
-  "message to unpin not found",
-];
+const ERR_NOOP_UNPIN = ["Bad Request: MESSAGE_ID_INVALID", "message to unpin not found"];
 
 /** Whether repeating the exact same request could succeed: a flood-wait
  * (429), a Telegram gateway failure — or a fetch that never reached
@@ -98,8 +95,7 @@ export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     } catch (err) {
       if (!transientFailure(err) || attempt + 1 >= MAX_ATTEMPTS) throw err;
       const retryAfter = retryAfterSeconds(err);
-      const delay =
-        retryAfter !== null ? retryAfter * 1000 : (BACKOFF_MS[attempt] ?? 1000);
+      const delay = retryAfter !== null ? retryAfter * 1000 : (BACKOFF_MS[attempt] ?? 1000);
       attempt += 1;
       const { promise, resolve } = Promise.withResolvers<void>();
       setTimeout(resolve, delay);
@@ -138,15 +134,9 @@ export function isPrivileged(member: ChatMember): boolean {
 
 /** Whether the bot itself can unpin in `chat`, given its membership there
  * and — consulted for basic groups only — the chat's default pin permission. */
-export function botCanUnpin(
-  chat: Chat,
-  member: ChatMember,
-  defaultCanPin: boolean,
-): boolean {
+export function botCanUnpin(chat: Chat, member: ChatMember, defaultCanPin: boolean): boolean {
   if (chat.type === "supergroup") {
-    return (
-      member.status === "administrator" && member.can_pin_messages === true
-    );
+    return member.status === "administrator" && member.can_pin_messages === true;
   }
   if (chat.type === "group") {
     // An administrator bot in a basic group carries no can_pin_messages of
@@ -158,10 +148,7 @@ export function botCanUnpin(
 
 /** The default member permission to pin when `chat` is a basic group —
  * false without an API call for any other chat type. */
-export async function basicGroupCanPin(
-  ctx: Context,
-  chat: Chat,
-): Promise<boolean> {
+export async function basicGroupCanPin(ctx: Context, chat: Chat): Promise<boolean> {
   if (chat.type !== "group") return false;
   const full = await ctx.api.getChat(chat.id);
   return full.permissions?.can_pin_messages === true;
@@ -203,9 +190,7 @@ export async function autoUnpin(ctx: Context, env: Env): Promise<void> {
     console.debug(`chat ${msg.chat.id} is not enabled; skipping unpin`);
     return;
   }
-  console.info(
-    `auto-forwarded channel post ${msg.message_id} in chat ${msg.chat.id}; unpinning`,
-  );
+  console.info(`auto-forwarded channel post ${msg.message_id} in chat ${msg.chat.id}; unpinning`);
   await unpinWithRetry(ctx, env, msg.chat.id, msg.message_id);
 }
 
@@ -237,23 +222,17 @@ async function unpinWithRetry(
           if (moved) {
             console.info(`enabled state migrated ${target} -> ${failure.newId}`);
           } else {
-            console.warn(
-              `chat ${target} was not in enabled state during migration`,
-            );
+            console.warn(`chat ${target} was not in enabled state during migration`);
           }
         } catch (e) {
-          console.error(
-            `failed to persist migration ${target} -> ${failure.newId}: ${e}`,
-          );
+          console.error(`failed to persist migration ${target} -> ${failure.newId}: ${e}`);
         }
         migrated = true;
         target = failure.newId;
         continue;
       }
       if (failure.kind === "noRights") {
-        console.warn(
-          `bot lacks pin rights in chat ${chatId}; re-run /enable after granting them`,
-        );
+        console.warn(`bot lacks pin rights in chat ${chatId}; re-run /enable after granting them`);
         return;
       }
       if (failure.kind === "chatGone") {
@@ -334,11 +313,7 @@ export async function myChatMember(ctx: Context, env: Env): Promise<void> {
 
 /** The Rust dispatcher's message branch, in order: auto-unpin, chat
  * migration, then fall through to the command handlers. */
-export async function routeMessage(
-  ctx: Context,
-  env: Env,
-  next: Next,
-): Promise<void> {
+export async function routeMessage(ctx: Context, env: Env, next: Next): Promise<void> {
   const msg = ctx.message;
   if (msg === undefined) return next(); // unreachable under the "message" filter
   if (isAutomaticForward(msg)) {

@@ -6,12 +6,7 @@ import type { ChatMember } from "@grammyjs/types";
 
 import type { Lang } from "./i18n";
 import * as state from "./state";
-import {
-  basicGroupCanPin,
-  botCanUnpin,
-  isPrivileged,
-  withRetry,
-} from "./unpin";
+import { basicGroupCanPin, botCanUnpin, isPrivileged, withRetry } from "./unpin";
 
 /** Replies to the triggering message so the answer reads in context in busy
  * groups; the message may be gone by the time we answer, which the
@@ -86,11 +81,7 @@ export async function help(ctx: Context, lang: Lang): Promise<void> {
   await reply(ctx, lang.help);
 }
 
-export async function enable(
-  ctx: Context,
-  lang: Lang,
-  env: Env,
-): Promise<void> {
+export async function enable(ctx: Context, lang: Lang, env: Env): Promise<void> {
   await typing(ctx);
   if (!(await ensureGroup(ctx, lang))) return;
   if (!(await ensureCallerAdmin(ctx, lang))) return;
@@ -117,9 +108,7 @@ export async function enable(
     return;
   }
   if (!botCanUnpin(chat, botMember, defaultCanPin)) {
-    console.info(
-      `bot cannot unpin in chat ${chat.id} (missing rights); /enable rejected`,
-    );
+    console.info(`bot cannot unpin in chat ${chat.id} (missing rights); /enable rejected`);
     await reply(ctx, lang.error.require_rights);
     return;
   }
@@ -138,11 +127,7 @@ export async function enable(
   }
 }
 
-export async function disable(
-  ctx: Context,
-  lang: Lang,
-  env: Env,
-): Promise<void> {
+export async function disable(ctx: Context, lang: Lang, env: Env): Promise<void> {
   await typing(ctx);
   if (!(await ensureGroup(ctx, lang))) return;
   if (!(await ensureCallerAdmin(ctx, lang))) return;
@@ -155,9 +140,7 @@ export async function disable(
       await reply(ctx, lang.error.already_disabled);
     }
   } catch (err) {
-    console.error(
-      `failed to persist disabled state for chat ${ctx.chat!.id}: ${err}`,
-    );
+    console.error(`failed to persist disabled state for chat ${ctx.chat!.id}: ${err}`);
     await reply(ctx, lang.error.retry_later);
   }
 }

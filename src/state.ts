@@ -4,8 +4,7 @@
 const CREATE_TABLE =
   "CREATE TABLE IF NOT EXISTS enabled_chats (chat_id INTEGER PRIMARY KEY NOT NULL)";
 const SELECT_ONE = "SELECT 1 AS enabled FROM enabled_chats WHERE chat_id = ?";
-const INSERT_OR_IGNORE =
-  "INSERT OR IGNORE INTO enabled_chats (chat_id) VALUES (?)";
+const INSERT_OR_IGNORE = "INSERT OR IGNORE INTO enabled_chats (chat_id) VALUES (?)";
 const DELETE = "DELETE FROM enabled_chats WHERE chat_id = ?";
 
 /** Creates the state table. Called by POST /register, never on the hot path. */
@@ -22,10 +21,7 @@ export async function has(db: D1Database, chatId: number): Promise<boolean> {
  * "already enabled"). One statement, one round trip: the write reports
  * whether it changed a row, so no read has to precede it, and a lost race
  * is just another no-op. A D1 failure still rejects, and changes nothing. */
-export async function insert(
-  db: D1Database,
-  chatId: number,
-): Promise<boolean> {
+export async function insert(db: D1Database, chatId: number): Promise<boolean> {
   const result = await db.prepare(INSERT_OR_IGNORE).bind(chatId).run();
   return result.meta.changes === 1;
 }
@@ -50,24 +46,14 @@ export async function remove(db: D1Database, chatId: number): Promise<boolean> {
  * The membership read stays here, unlike insert/remove: a group upgrade
  * happens once in the life of a chat, and a conditional insert would trade
  * a saved round trip for a subtler statement to preserve the same answer. */
-export async function replace(
-  db: D1Database,
-  oldId: number,
-  newId: number,
-): Promise<boolean> {
+export async function replace(db: D1Database, oldId: number, newId: number): Promise<boolean> {
   if (!(await has(db, oldId))) return false;
-  await db.batch([
-    db.prepare(INSERT_OR_IGNORE).bind(newId),
-    db.prepare(DELETE).bind(oldId),
-  ]);
+  await db.batch([db.prepare(INSERT_OR_IGNORE).bind(newId), db.prepare(DELETE).bind(oldId)]);
   return true;
 }
 
 /** Bulk-imports chat ids from the old state.json (POST /register body). */
-export async function importChats(
-  db: D1Database,
-  chatIds: readonly number[],
-): Promise<void> {
+export async function importChats(db: D1Database, chatIds: readonly number[]): Promise<void> {
   if (chatIds.length === 0) return;
   await db.batch(chatIds.map((id) => db.prepare(INSERT_OR_IGNORE).bind(id)));
 }

@@ -42,9 +42,7 @@ export function createBot(env: Env): UnpinBot {
   ): void => {
     bot.command(name, async (ctx) => {
       const lang = resolve(ctx.from?.language_code);
-      console.log(
-        `command /${name} from user ${ctx.from?.id ?? "<anon>"} in chat ${ctx.chatId}`,
-      );
+      console.log(`command /${name} from user ${ctx.from?.id ?? "<anon>"} in chat ${ctx.chatId}`);
       await fn(ctx, lang, env);
     });
   };

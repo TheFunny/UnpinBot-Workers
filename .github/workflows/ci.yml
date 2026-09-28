@@ -15,6 +15,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run format:check
       - run: npm run typecheck
       # worker-configuration.d.ts is generated, but its Env block only
       # carries the three secrets when their names are visible to wrangler

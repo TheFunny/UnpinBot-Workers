@@ -76,13 +76,15 @@ Behavior is identical to the Rust release:
 | `npm run dev` | `wrangler dev` — local workerd with local D1 state |
 | `npm test` | vitest — the Rust test suite ported (retry budget, failure classification, state semantics, permission predicates, migration, routing, i18n) plus the Worker's own surface: the credential gates in `index.ts`, the setup endpoint, and the command handlers |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run format` | prettier --write over `src` and `test` |
+| `npm run format:check` | prettier --check, the same paths; this is what CI runs |
 | `npm run cf-typegen` | regenerate `worker-configuration.d.ts` after changing `wrangler.jsonc` |
 
 Local note: outbound calls to `api.telegram.org` must be reachable from your network. Behind a firewall they hang on `getMe` — the gates (401/403/404) still work, full webhook behavior needs a deployment.
 
 ## CI
 
-Every push and pull request runs typecheck, the test suite, and `npm audit`. Pushes to `main` also deploy — gated behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets, so nothing ships until you opt in.
+Every push and pull request runs the format check, typecheck, the test suite, a check that the generated `worker-configuration.d.ts` still matches `wrangler.jsonc`, and `npm audit`. Pushes to `main` also deploy — gated behind the repository variable `DEPLOY_ENABLED=1` plus the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets, so nothing ships until you opt in.
 
 ## License
 

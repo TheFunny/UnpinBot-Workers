@@ -25,16 +25,13 @@ export default {
     if (pathname === "/tg" && request.method === "POST") {
       // Trust-boundary check first: wrong senders are rejected before any
       // Telegram round trip (grammY re-verifies the header downstream).
-      const given =
-        request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
+      const given = request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
       if (!keysMatch(given, env.WEBHOOK_SECRET)) {
         if (env.WEBHOOK_SECRET === undefined) {
           // keysMatch fails closed, so a 401 here with no header means the
           // secret was never set — say so instead of leaving an
           // unauthenticated loop that looks like a Telegram problem.
-          console.error(
-            "WEBHOOK_SECRET is not set; run: wrangler secret put WEBHOOK_SECRET",
-          );
+          console.error("WEBHOOK_SECRET is not set; run: wrangler secret put WEBHOOK_SECRET");
         }
         return new Response("Unauthorized", { status: 401 });
       }
