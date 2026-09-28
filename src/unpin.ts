@@ -80,12 +80,14 @@ function retryAfterSeconds(err: unknown): number | null {
  * ponytail: the 429 sleep is deliberately uncapped, and that is what saves
  * the post. A flood-wait longer than the webhook's 30 s budget
  * (timeoutMilliseconds in index.ts) kills the request instead of answering
- * it, and grammY's default onTimeout, "throw", turns that into a 5xx — so
- * Telegram redelivers the update and the unpin succeeds on a later
- * delivery. Capping the sleep would let the request finish inside the
- * budget, answer 200, and leave the post pinned forever. Cap it only if
- * that timeout ever starts answering 200; the cleaner fix is to hand the
- * retry to ctx.waitUntil so no response waits on a sleep. */
+ * it, and the onTimeout: "throw" there turns that into a 5xx — so Telegram
+ * redelivers the update and the unpin succeeds on a later delivery.
+ * Capping the sleep would let the request finish inside the budget, answer
+ * 200, and leave the post pinned forever. The fix that needs no response to
+ * wait on a sleep is waitUntil, but it is not reachable from here: the
+ * cloudflare-mod adapter's handler takes the request alone and drops the
+ * ExecutionContext, so getting one means driving bot.handleUpdate directly
+ * instead of webhookCallback. */
 export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   let attempt = 0;
   for (;;) {
