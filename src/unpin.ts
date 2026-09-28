@@ -16,9 +16,9 @@ type Next = () => Promise<void>;
 export const MAX_ATTEMPTS = 3;
 
 /** Backoff before each retry after the first: one entry fewer than
- * MAX_ATTEMPTS, because three attempts sleep twice. The `?? 1000` in
- * withRetry covers a longer budget, so raising MAX_ATTEMPTS degrades to
- * the last known sleep rather than to no wait at all. */
+ * MAX_ATTEMPTS, because three attempts sleep twice. Past the end of the
+ * array withRetry falls back to a fixed 1000 ms, so raising MAX_ATTEMPTS
+ * costs a last wait, not no wait. */
 const BACKOFF_MS = [500, 1000];
 
 /** Bot API descriptions that mean "the same request may well succeed if
