@@ -16,7 +16,12 @@ import {
 /** Replies to the triggering message so the answer reads in context in busy
  * groups; the message may be gone by the time we answer, which the
  * allow_sending_without_reply flag tolerates. Commands only ever fire on
- * messages, so both lookups below are safe. */
+ * messages, so both lookups below are safe.
+ *
+ * Every string reaching here is a catalog entry sent as HTML, so a new
+ * translation containing `<`, `>` or `&` has to carry the entities (or
+ * stay plain text) — Telegram rejects the whole send with "can't parse
+ * entities" otherwise, and the user sees nothing at all. */
 async function reply(ctx: Context, text: string): Promise<void> {
   await ctx.reply(text, {
     parse_mode: "HTML",
