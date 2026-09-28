@@ -3,34 +3,16 @@
 import en from "./i18n/en.json";
 import zh from "./i18n/zh.json";
 
-export interface Lang {
-  start: string;
-  help: string;
-  enable: string;
-  disable: string;
-  error: {
-    not_group: string;
-    not_admin: string;
-    require_rights: string;
-    rights_revoked: string;
-    already_enabled: string;
-    already_disabled: string;
-    retry_later: string;
-  };
-  cmd: {
-    start: string;
-    help: string;
-    enable: string;
-    disable: string;
-  };
-  description: string;
-}
+/** The English catalog is the shape: every other catalog has to match it
+ * field for field, and `satisfies` below is the compile-time completeness
+ * check the Rust release got from deserializing each catalog. Deriving
+ * the type beats hand-copying it — a key added here cannot be forgotten
+ * in the interface. */
+export type Lang = typeof en;
 
-// The annotation is the compile-time completeness check: the Rust release
-// got the same guarantee from serde deserializing each catalog.
 export const ALL: ReadonlyArray<readonly [string, Lang]> = [
   ["en", en],
-  ["zh", zh],
+  ["zh", zh satisfies Lang],
 ];
 
 const FALLBACK: Lang = ALL.find(([code]) => code === "en")![1];
