@@ -50,6 +50,11 @@ export default {
       }
       return webhookCallback(unpin.bot, "cloudflare-mod", {
         secretToken: env.WEBHOOK_SECRET,
+        // Stated, not inherited: "throw" is what turns a handler that
+        // outran the ceiling into a 5xx, and the 5xx is what hands the
+        // update back to Telegram. grammY's default says the same today;
+        // "return" would answer 200 and leave the post pinned forever.
+        onTimeout: "throw",
         // A ceiling, not a promise that the handler fits inside it: a
         // flood-wait sleep in withRetry overruns it deliberately, and the
         // resulting 5xx is what hands the update back to Telegram (see the
