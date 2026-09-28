@@ -34,6 +34,8 @@ In `wrangler.jsonc`:
 | routes / custom domain | Recommended: Telegram may reject the wildcard `*.workers.dev` certificate. A custom domain gets an exact-match certificate |
 | `compatibility_date` | Pinned to a date the bundled workerd actually supports; bump deliberately |
 
+`database_id` is an identifier, not a credential, but it is committed — so this repository plus a leaked bot token is full read/write access to the enabled-chats table. The token is the part worth rotating: if it is ever exposed (a public fork, a pasted config, a compromised CI secret), revoke and reissue it with [@BotFather](https://t.me/BotFather) and set the new one with `npx wrangler secret put TELOXIDE_TOKEN`; a token rotated this way is the only thing standing between a stranger and your groups' configuration. The two keys in `.dev.vars` are placeholders and `.dev.vars` itself is gitignored — keep real values there out of any commit.
+
 ## Deployment
 
 1. `npm install`
