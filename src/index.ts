@@ -7,13 +7,16 @@ import type { UnpinBot } from "./bot";
 import { handleRegister } from "./register";
 import { keysMatch } from "./secret";
 
-// One bot per isolate; env identity guards the cache against any
-// environment swap. Both bindings and secrets are immutable per version,
-// so caching across requests of the same version is safe.
-let boot: { env: Env; unpin: UnpinBot } | null = null;
+// One bot per isolate, cached on the token it is built from. Keying on
+// the identity of the `env` object was the tempting version: bindings
+// are immutable per version, so the object can only change if the
+// environment did. But nothing promises the *same* object across
+// requests, and a miss here costs a getMe round trip on every single
+// update — including the init cache inside the bot, which goes with it.
+let boot: { token: string; unpin: UnpinBot } | null = null;
 function bootFor(env: Env): UnpinBot {
-  if (boot === null || boot.env !== env) {
-    boot = { env, unpin: createBot(env) };
+  if (boot === null || boot.token !== env.TELOXIDE_TOKEN) {
+    boot = { token: env.TELOXIDE_TOKEN, unpin: createBot(env) };
   }
   return boot.unpin;
 }
