@@ -42,17 +42,31 @@ const ERR_NOOP_UNPIN = [
 ];
 
 /** Whether repeating the exact same request could succeed: a flood-wait
- * (429), a Telegram gateway failure — or any fetch-level network failure.
- * A Bot API error saying nothing transient, and a non-Bot-API HTTP response
- * (HttpError ≡ the Rust release's undecodable-body InvalidJson), return
- * false. */
+ * (429), a Telegram gateway failure — or a fetch that never reached
+ * Telegram. A Bot API error saying nothing transient, and a non-Bot-API
+ * HTTP response (HttpError ≡ the Rust release's undecodable-body
+ * InvalidJson), return false.
+ *
+ * The catch-all used to be `true`, which also retried bugs: a TypeError
+ * from a mistyped property burned the budget and delayed the log by 1.5 s.
+ * What separates the two is the error class, measured against a local
+ * workerd: a dropped connection arrives as a *plain* Error — "Network
+ * connection lost." on a refused port, "internal error; reference = …"
+ * on a bad host — never a TypeError, and with no cause. So the types that
+ * only a mistake in this worker can throw are the ones not repeated. */
 export function transientFailure(err: unknown): boolean {
   if (err instanceof GrammyError) {
     if (err.error_code === 429) return true;
     return TRANSIENT_API_ERRORS.some((s) => err.description.includes(s));
   }
   if (err instanceof HttpError) return false;
-  return true;
+  if (!(err instanceof Error)) return false;
+  return !(
+    err instanceof TypeError ||
+    err instanceof ReferenceError ||
+    err instanceof RangeError ||
+    err instanceof SyntaxError
+  );
 }
 
 /** Telegram's demanded 429 pause in seconds, if this is a flood-wait. */

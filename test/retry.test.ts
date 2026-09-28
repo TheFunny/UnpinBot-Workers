@@ -43,7 +43,7 @@ describe("withRetry", () => {
     const t = tracked(
       withRetry(async () => {
         calls++;
-        throw new TypeError("fetch failed");
+        throw new Error("Network connection lost.");
       }),
     );
     await vi.advanceTimersByTimeAsync(499);
@@ -57,7 +57,7 @@ describe("withRetry", () => {
     expect(t.isDone()).toBe(false);
     await vi.advanceTimersByTimeAsync(1); // backoff[1] = 1000 elapsed
     expect(calls).toBe(MAX_ATTEMPTS);
-    await expect(t.p).rejects.toThrow("fetch failed");
+    await expect(t.p).rejects.toThrow("Network connection lost.");
     expect(t.isDone()).toBe(true);
   });
 
@@ -66,7 +66,7 @@ describe("withRetry", () => {
     const t = tracked(
       withRetry(async () => {
         calls++;
-        if (calls === 1) throw new TypeError("reset");
+        if (calls === 1) throw new Error("Network connection lost.");
         return "ok";
       }),
     );
@@ -150,15 +150,32 @@ describe("withRetry", () => {
 });
 
 describe("transientFailure", () => {
-  it("treats429s, gateway descriptions, and fetch failures as transient", () => {
+  it("treats 429s, gateway descriptions, and a lost connection as transient", () => {
     expect(transientFailure(flood())).toBe(true);
     expect(transientFailure(apiError("Bad Gateway"))).toBe(true);
     expect(transientFailure(apiError("Bad Request: Internal Server Error"))).toBe(true);
-    expect(transientFailure(new TypeError("fetch failed"))).toBe(true);
+    // What workerd actually throws for a dead connection — a plain Error,
+    // not undici's TypeError. Measured against a local workerd.
+    expect(transientFailure(new Error("Network connection lost."))).toBe(true);
+    expect(transientFailure(new Error("internal error; reference = abc"))).toBe(true);
   });
 
   it("treats ordinary Bot API errors and raw HTTP failures as permanent", () => {
     expect(transientFailure(apiError("Bad Request: nope"))).toBe(false);
     expect(transientFailure(new HttpError("502", new Error("bad")))).toBe(false);
+  });
+
+  it("does not repeat the exception types only a bug in this worker throws", () => {
+    // Retrying one of these only delays the log by 1.5 s and hides the bug
+    // behind three identical attempts.
+    for (const bug of [
+      new TypeError("Cannot read properties of undefined (reading 'id')"),
+      new ReferenceError("ctx is not defined"),
+      new RangeError("Invalid array length"),
+      new SyntaxError("Unexpected token"),
+      "a thrown string",
+    ]) {
+      expect(transientFailure(bug), String(bug)).toBe(false);
+    }
   });
 });
