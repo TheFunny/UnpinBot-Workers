@@ -39,9 +39,7 @@ export async function remove(db: D1Database, chatId: number): Promise<boolean> {
  *
  * Inserts the new id before deleting the old one: if anything fails between
  * the two, unpinning keeps working on the new id and only a harmless stale
- * row remains. The opposite order could leave the chat silent forever — the
- * failure mode the Rust release guarded with its deliberately un-rolled-back
- * move.
+ * row remains. The opposite order could leave the chat silent forever.
  *
  * The membership read stays here, unlike insert/remove: a group upgrade
  * happens once in the life of a chat, and a conditional insert would trade

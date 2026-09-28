@@ -1,7 +1,6 @@
 //! One-shot setup endpoint (POST /register): state-table DDL, optional
 //! state import (the old state.json as the request body), setWebhook, and
-//! the bot profile — the Workers replacement for the Rust release's
-//! startup sequence, kept idempotent so it can be re-run at any time.
+//! the bot profile — idempotent, so it can be re-run at any time.
 
 import type { LanguageCode } from "@grammyjs/types";
 

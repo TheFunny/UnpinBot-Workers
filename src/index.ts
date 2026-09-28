@@ -7,12 +7,10 @@ import type { UnpinBot } from "./bot";
 import { handleRegister } from "./register";
 import { keysMatch } from "./secret";
 
-// One bot per isolate, cached on the token it is built from. Keying on
-// the identity of the `env` object was the tempting version: bindings
-// are immutable per version, so the object can only change if the
-// environment did. But nothing promises the *same* object across
-// requests, and a miss here costs a getMe round trip on every single
-// update — including the init cache inside the bot, which goes with it.
+// One bot per isolate, cached on the token it is built from. Nothing
+// promises the same `env` object across requests, and a miss here costs a
+// getMe round trip on every single update — including the bot's own init
+// cache, which goes with it.
 let boot: { token: string; unpin: UnpinBot } | null = null;
 function bootFor(env: Env): UnpinBot {
   if (boot === null || boot.token !== env.TELOXIDE_TOKEN) {
@@ -41,10 +39,9 @@ export default {
       // Built here, not above the routing: a 404 or a rejected sender must
       // not cost a Bot instance, and the trust boundary stays first.
       const unpin = bootFor(env);
-      // getMe must have succeeded before any handler runs (command matching
-      // needs botInfo). Failing the request here hands the update back to
-      // Telegram, which redelivers it later — the webhook-native equivalent
-      // of the Rust release refusing to start on a bad token.
+      // getMe must have succeeded before any handler runs (command
+      // matching needs botInfo). Failing the request here hands the
+      // update back to Telegram, which redelivers it later.
       try {
         await unpin.ensureInit();
       } catch (err) {
@@ -53,10 +50,10 @@ export default {
       }
       return webhookCallback(unpin.bot, "cloudflare-mod", {
         secretToken: env.WEBHOOK_SECRET,
-        // Matches the Rust release's REQUEST_TIMEOUT. It is a ceiling, not
-        // a promise that the handler fits inside it: a flood-wait sleep in
-        // withRetry overruns it deliberately, and the resulting 5xx is what
-        // hands the update back to Telegram (see the note on withRetry).
+        // A ceiling, not a promise that the handler fits inside it: a
+        // flood-wait sleep in withRetry overruns it deliberately, and the
+        // resulting 5xx is what hands the update back to Telegram (see the
+        // note on withRetry).
         timeoutMilliseconds: 30_000,
       })(request);
     }

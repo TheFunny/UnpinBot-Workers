@@ -1,13 +1,12 @@
-//! Embedded UI strings, copied verbatim from the Rust release's lang/*.json.
+//! Embedded UI strings, one JSON catalog per supported language.
 
 import en from "./i18n/en.json";
 import zh from "./i18n/zh.json";
 
 /** The English catalog is the shape: every other catalog has to match it
  * field for field, and `satisfies` below is the compile-time completeness
- * check the Rust release got from deserializing each catalog. Deriving
- * the type beats hand-copying it — a key added here cannot be forgotten
- * in the interface. */
+ * check. Deriving the type beats hand-copying it — a key added here cannot
+ * be forgotten in an interface. */
 export type Lang = typeof en;
 
 export const ALL: ReadonlyArray<readonly [string, Lang]> = [

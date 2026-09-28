@@ -43,12 +43,9 @@ const ERR_NOOP_UNPIN = ["Bad Request: MESSAGE_ID_INVALID", "message to unpin not
 /** Whether repeating the exact same request could succeed: a flood-wait
  * (429), a Telegram gateway failure — or a fetch that never reached
  * Telegram. A Bot API error saying nothing transient, and a non-Bot-API
- * HTTP response (HttpError ≡ the Rust release's undecodable-body
- * InvalidJson), return false.
+ * HTTP response, return false.
  *
- * The catch-all used to be `true`, which also retried bugs: a TypeError
- * from a mistyped property burned the budget and delayed the log by 1.5 s.
- * What separates the two is the error class, measured against a local
+ * The two are separated by the error class, measured against a local
  * workerd: a dropped connection arrives as a *plain* Error — "Network
  * connection lost." on a refused port, "internal error; reference = …"
  * on a bad host — never a TypeError, and with no cause. So the types that

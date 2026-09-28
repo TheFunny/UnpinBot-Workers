@@ -53,12 +53,11 @@ export function createBot(env: Env): UnpinBot {
 
   bot.on("my_chat_member", (ctx) => myChatMember(ctx, env));
 
-  // Handler failures are logged and answered with 200, like the Rust
-  // dispatcher consuming an endpoint error: the update is spent, and
-  // withRetry already exhausted the transient budget inside the handler.
-  // The one way an update is handed back instead: a request that outruns
-  // the webhook timeout never reaches this handler, and answers 5xx so
-  // Telegram redelivers it (see the note on withRetry).
+  // Handler failures are logged and answered with 200: the update is
+  // spent, and withRetry already exhausted the transient budget inside
+  // the handler. The one way an update comes back instead: a request
+  // that outruns the webhook timeout never reaches this handler, and
+  // answers 5xx so Telegram redelivers it (see the note on withRetry).
   // The value is logged as its own argument, the way grammY's own handler
   // does: interpolating it stringified whatever a middleware threw, and a
   // throw of `undefined` logged as the string "undefined" — no trace.
