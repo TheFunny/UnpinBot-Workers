@@ -176,6 +176,12 @@ describe("botCanUnpin", () => {
     expect(botCanUnpin(chat("private"), admin(true), true)).toBe(false);
     expect(botCanUnpin(chat("channel"), admin(true), true)).toBe(false);
   });
+
+  it("the owner holds the right without an admin record or a default", () => {
+    const owner = member({ status: "creator" });
+    expect(botCanUnpin(chat("supergroup"), owner, false)).toBe(true);
+    expect(botCanUnpin(chat("group"), owner, false)).toBe(true);
+  });
 });
 
 describe("message routing", () => {

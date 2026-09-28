@@ -134,6 +134,11 @@ export function isPrivileged(member: ChatMember): boolean {
 /** Whether the bot itself can unpin in `chat`, given its membership there
  * and — consulted for basic groups only — the chat's default pin permission. */
 export function botCanUnpin(chat: Chat, member: ChatMember, defaultCanPin: boolean): boolean {
+  // A creator holds every right implicitly, and needs no default
+  // permission: reading the admin record as if the bot were an ordinary
+  // administrator answers false where Telegram would answer yes — which
+  // costs a /enable outright, and myChatMember turns into a removal.
+  if (member.status === "creator") return true;
   if (chat.type === "supergroup") {
     return member.status === "administrator" && member.can_pin_messages === true;
   }
