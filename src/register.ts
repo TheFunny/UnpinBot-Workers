@@ -11,6 +11,12 @@ import { ALL, resolve } from "./i18n";
 import type { Lang } from "./i18n";
 import type { UnpinBot } from "./bot";
 
+/** Ceiling on one state import. A real state.json holds one row per
+ * discussion group, so anything near this is a wrong file rather than a
+ * big deployment — and it bounds the batch to a size a request can
+ * actually deliver. */
+const MAX_IMPORT = 10_000;
+
 export async function handleRegister(
   request: Request,
   env: Env,
@@ -52,15 +58,33 @@ export async function handleRegister(
 
   // Storage first: table plus an optional import. The old state.json can be
   // posted verbatim — {"enabled_chats": [...]} — making migration a curl.
+  // The body is untrusted input, so nothing reaches D1 unvalidated: chat ids
+  // are int64, and a wrong file would otherwise bind a string or a float.
   try {
     await ensureTable(env.DB);
     report.table = "created";
     const body = (await request.text()).trim();
     if (body.length > 0) {
-      const parsed = JSON.parse(body) as { enabled_chats?: number[] };
-      const chatIds = Array.isArray(parsed.enabled_chats)
-        ? parsed.enabled_chats
-        : [];
+      const parsed = JSON.parse(body) as { enabled_chats?: unknown };
+      const listed = parsed.enabled_chats;
+      // A body without the field is a no-op; one that has it as something
+      // other than a list is the wrong file, and importing zero ids while
+      // reporting success is the worst answer we could give the operator.
+      if (listed !== undefined && !Array.isArray(listed)) {
+        throw new Error("enabled_chats is not a list of chat ids");
+      }
+      const ids: unknown[] = Array.isArray(listed) ? listed : [];
+      const chatIds = ids.filter((id): id is number => Number.isSafeInteger(id));
+      if (chatIds.length !== ids.length) {
+        throw new Error(
+          `${ids.length - chatIds.length} of ${ids.length} enabled_chats entries are not integers`,
+        );
+      }
+      if (chatIds.length > MAX_IMPORT) {
+        throw new Error(
+          `enabled_chats holds ${chatIds.length} ids, over the ${MAX_IMPORT} limit; import them in batches`,
+        );
+      }
       await importChats(env.DB, chatIds);
       report.imported = chatIds.length;
     }

@@ -136,4 +136,44 @@ describe("POST /register", () => {
     expect(second.report.imported).toBe(2);
     expect(fake.rows.size).toBe(2);
   });
+
+  it("imports nothing from a body that is not a chat-id list", async () => {
+    // Reporting "imported 0, ok: true" for the wrong file is the worst
+    // answer the operator could get: the migration looks done.
+    for (const [body, reason] of [
+      [JSON.stringify({ enabled_chats: "everything" }), /not a list/],
+      [JSON.stringify({ enabled_chats: [1, "2", null, 3.5, 4] }), /not integers/],
+      [JSON.stringify({ enabled_chats: [1, 2.0000001] }), /not integers/],
+    ] as const) {
+      const fake = fakeD1();
+      const { status, report } = await register("", { body, fake });
+      expect(status, body).toBe(502);
+      expect(report.ok, body).toBe(false);
+      expect(String(report.storage), body).toMatch(reason);
+      expect(fake.rows.size, body).toBe(0);
+    }
+  });
+
+  it("ignores a body that carries no enabled_chats at all", async () => {
+    const fake = fakeD1();
+    const { status, report } = await register("", {
+      body: JSON.stringify({ note: "state.json was empty" }),
+      fake,
+    });
+    expect(status).toBe(200);
+    expect(report.imported).toBe(0);
+  });
+
+  it("refuses an import larger than one request can carry", async () => {
+    const fake = fakeD1();
+    const { status, report } = await register("", {
+      body: JSON.stringify({
+        enabled_chats: Array.from({ length: 10_001 }, (_, i) => -i),
+      }),
+      fake,
+    });
+    expect(status).toBe(502);
+    expect(String(report.storage)).toMatch(/over the 10000 limit/);
+    expect(fake.rows.size).toBe(0);
+  });
 });
