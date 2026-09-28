@@ -23,19 +23,20 @@ interface Registered {
   report: Record<string, unknown>;
 }
 
-function env(db: D1Database): Env {
+function env(db: D1Database, secrets: Partial<Env> = {}): Env {
   return {
     TELOXIDE_TOKEN: "0:t",
     WEBHOOK_SECRET: "hook",
     ADMIN_KEY,
     DB: db,
+    ...secrets,
   } as unknown as Env;
 }
 
 /** Runs /register against a fake D1 and a bot recording its API calls. */
 async function register(
   query = "",
-  init: { key?: string; body?: string; fake?: FakeD1 } = {},
+  init: { key?: string; body?: string; fake?: FakeD1; secrets?: Partial<Env> } = {},
 ): Promise<Registered> {
   const fake = init.fake ?? fakeD1();
   const setWebhook: Mock<(url: string, options: WebhookOptions) => Promise<boolean>> =
@@ -57,7 +58,7 @@ async function register(
       headers: { "X-Register-Key": init.key ?? ADMIN_KEY },
       ...(init.body === undefined ? {} : { body: init.body }),
     }),
-    env(fake.db),
+    env(fake.db, init.secrets),
     unpin,
   );
   const text = await response.text();
@@ -107,6 +108,22 @@ describe("POST /register", () => {
   it("refuses a wrong or missing register key", async () => {
     expect((await register("", { key: "wrong" })).status).toBe(403);
     expect((await register("", { key: "" })).status).toBe(403);
+  });
+
+  it("refuses setup while any secret is missing", async () => {
+    // Handing Telegram a webhook whose secret_token we never set is worse
+    // than failing: every genuine update would 401 and the report would
+    // still say ok.
+    for (const name of ["TELOXIDE_TOKEN", "WEBHOOK_SECRET", "ADMIN_KEY"] as const) {
+      const { status, report, setWebhook } = await register("", {
+        secrets: { [name]: undefined },
+      });
+      expect(status, name).toBe(500);
+      expect(report.failures, name).toEqual([
+        `${name} is not set; run: wrangler secret put ${name}`,
+      ]);
+      expect(setWebhook, name).not.toHaveBeenCalled();
+    }
   });
 
   it("imports an old state.json verbatim, idempotently", async () => {

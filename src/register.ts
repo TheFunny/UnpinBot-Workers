@@ -16,14 +16,21 @@ export async function handleRegister(
   env: Env,
   unpin: UnpinBot,
 ): Promise<Response> {
-  if (env.ADMIN_KEY === undefined) {
-    // Reported as a setup error rather than a bare 403: keysMatch fails
-    // closed, so an unset key would otherwise be indistinguishable from a
-    // wrong one — and the request could never succeed.
+  // The three secrets are the entire input to the setup below, so a missing
+  // one is a setup error rather than a wrong key. Continuing would hand
+  // Telegram a webhook we can never authenticate (unset WEBHOOK_SECRET:
+  // every genuine update 401s) or no admin gate at all.
+  const missing: string[] = [];
+  for (const name of ["TELOXIDE_TOKEN", "WEBHOOK_SECRET", "ADMIN_KEY"] as const) {
+    if (env[name] === undefined) missing.push(name);
+  }
+  if (missing.length > 0) {
     return Response.json(
       {
         ok: false,
-        failures: ["ADMIN_KEY is not set; run: wrangler secret put ADMIN_KEY"],
+        failures: missing.map(
+          (name) => `${name} is not set; run: wrangler secret put ${name}`,
+        ),
       },
       { status: 500 },
     );
