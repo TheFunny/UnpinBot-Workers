@@ -71,7 +71,7 @@ Behavior is identical to the Rust release:
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | `wrangler dev` — local workerd with local D1 state |
-| `npm test` | vitest — the Rust test suite ported: retry budget, failure classification, state semantics, permission predicates, migration, routing, i18n |
+| `npm test` | vitest — the Rust test suite ported (retry budget, failure classification, state semantics, permission predicates, migration, routing, i18n) plus the Worker's own surface: the credential gates in `index.ts`, the setup endpoint, and the command handlers |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run cf-typegen` | regenerate `worker-configuration.d.ts` after changing `wrangler.jsonc` |
 
