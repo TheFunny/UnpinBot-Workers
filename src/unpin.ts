@@ -146,10 +146,12 @@ export function botCanUnpin(chat: Chat, member: ChatMember, defaultCanPin: boole
 }
 
 /** The default member permission to pin when `chat` is a basic group —
- * false without an API call for any other chat type. */
+ * false without an API call for any other chat type. Retried like every
+ * other Bot API call here: a transient failure would otherwise cost the
+ * caller a /enable, or a my_chat_member update, outright. */
 export async function basicGroupCanPin(ctx: Context, chat: Chat): Promise<boolean> {
   if (chat.type !== "group") return false;
-  const full = await ctx.api.getChat(chat.id);
+  const full = await withRetry(() => ctx.api.getChat(chat.id));
   return full.permissions?.can_pin_messages === true;
 }
 

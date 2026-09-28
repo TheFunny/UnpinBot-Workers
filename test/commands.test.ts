@@ -2,7 +2,7 @@
 //! group check, caller privileges, the bot's own pin rights, and what the
 //! enabled set says afterwards.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GrammyError } from "grammy";
 import type { Context } from "grammy";
 import type { Chat, ChatMember, User } from "@grammyjs/types";
@@ -17,6 +17,10 @@ const lang = resolve("en");
 const BOT_ID = 42;
 const ADMIN_ID = 7;
 const SUPERGROUP_ID = -1001;
+
+// A retried lookup runs its backoff on the fake clock; a real one would
+// spend seconds of wall time on every run of the suite.
+afterEach(() => vi.useRealTimers());
 
 type ChatKind = Chat["type"];
 
@@ -182,10 +186,15 @@ describe("/enable", () => {
   });
 
   it("does not flip state when the chat lookup fails", async () => {
-    const { replies, fake } = await run(enable, {
+    // "Bad Gateway" is transient, so the lookup is retried before the
+    // command gives up; the fake clock carries the backoff.
+    vi.useFakeTimers();
+    const pending = run(enable, {
       chat: chat("group"),
       getChatError: apiError("Bad Gateway"),
     });
+    await vi.advanceTimersByTimeAsync(1_500);
+    const { replies, fake } = await pending;
     expect(replies).toEqual([lang.error.retry_later]);
     expect(fake.statements).toEqual([]);
   });
