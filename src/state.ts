@@ -4,7 +4,6 @@
 const CREATE_TABLE =
   "CREATE TABLE IF NOT EXISTS enabled_chats (chat_id INTEGER PRIMARY KEY NOT NULL)";
 const SELECT_ONE = "SELECT 1 AS enabled FROM enabled_chats WHERE chat_id = ?";
-const INSERT = "INSERT INTO enabled_chats (chat_id) VALUES (?)";
 const INSERT_OR_IGNORE =
   "INSERT OR IGNORE INTO enabled_chats (chat_id) VALUES (?)";
 const DELETE = "DELETE FROM enabled_chats WHERE chat_id = ?";
@@ -19,29 +18,24 @@ export async function has(db: D1Database, chatId: number): Promise<boolean> {
   return (await db.prepare(SELECT_ONE).bind(chatId).first()) !== null;
 }
 
-/** Adds `chatId`; resolves false when it was already present (the caller
- * answers "already enabled"), rejects when D1 itself failed (the caller
- * answers retry_later). Nothing to roll back: a failed INSERT changes
- * nothing, and a lost race means another isolate already inserted the id. */
+/** Adds `chatId`; false when it was already present (the caller answers
+ * "already enabled"). One statement, one round trip: the write reports
+ * whether it changed a row, so no read has to precede it, and a lost race
+ * is just another no-op. A D1 failure still rejects, and changes nothing. */
 export async function insert(
   db: D1Database,
   chatId: number,
 ): Promise<boolean> {
-  if (await has(db, chatId)) return false;
-  try {
-    await db.prepare(INSERT).bind(chatId).run();
-    return true;
-  } catch (err) {
-    if (String(err).includes("UNIQUE constraint")) return false;
-    throw err;
-  }
+  const result = await db.prepare(INSERT_OR_IGNORE).bind(chatId).run();
+  return result.meta.changes === 1;
 }
 
-/** Removes `chatId`; false when it was not enabled. */
+/** Removes `chatId`; false when it was not enabled. Racing disables of one
+ * chat resolve as one removal and one no-op, instead of both answering
+ * "disabled". */
 export async function remove(db: D1Database, chatId: number): Promise<boolean> {
-  if (!(await has(db, chatId))) return false;
-  await db.prepare(DELETE).bind(chatId).run();
-  return true;
+  const result = await db.prepare(DELETE).bind(chatId).run();
+  return result.meta.changes === 1;
 }
 
 /** Moves an enabled entry across a group→supergroup migration; false when
@@ -51,7 +45,11 @@ export async function remove(db: D1Database, chatId: number): Promise<boolean> {
  * the two, unpinning keeps working on the new id and only a harmless stale
  * row remains. The opposite order could leave the chat silent forever — the
  * failure mode the Rust release guarded with its deliberately un-rolled-back
- * move. */
+ * move.
+ *
+ * The membership read stays here, unlike insert/remove: a group upgrade
+ * happens once in the life of a chat, and a conditional insert would trade
+ * a saved round trip for a subtler statement to preserve the same answer. */
 export async function replace(
   db: D1Database,
   oldId: number,

@@ -19,6 +19,27 @@ describe("enabled-chat state", () => {
     expect(rows.has(42)).toBe(false);
   });
 
+  it("resolves each command with a single statement", async () => {
+    const fake = fakeD1();
+    expect(await insert(fake.db, 5)).toBe(true);
+    expect(fake.statements).toHaveLength(1);
+    expect(fake.statements[0]).toMatch(/^INSERT OR IGNORE/);
+    fake.statements.length = 0;
+    expect(await remove(fake.db, 5)).toBe(true);
+    expect(fake.statements).toHaveLength(1);
+    expect(fake.statements[0]).toMatch(/^DELETE/);
+  });
+
+  it("gives a racing enable or disable exactly one winner", async () => {
+    const fake = fakeD1();
+    // Two isolates answering the same /enable or /disable: the write
+    // decides, so exactly one caller reports a change.
+    const enables = await Promise.all([insert(fake.db, 8), insert(fake.db, 8)]);
+    expect(enables.filter(Boolean)).toHaveLength(1);
+    const disables = await Promise.all([remove(fake.db, 8), remove(fake.db, 8)]);
+    expect(disables.filter(Boolean)).toHaveLength(1);
+  });
+
   it("replace moves the entry only when the old id was enabled", async () => {
     const { db, rows } = fakeD1();
     await insert(db, 1);
