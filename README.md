@@ -53,7 +53,7 @@ In `wrangler.jsonc`:
 
    `"ok": true` in the response means webhook, menus, rights, and import all succeeded. The endpoint is idempotent — re-run it after any config change.
 
-   One call imports at most **40** chat ids: D1 allows 50 queries per Worker invocation on the Free plan, and every id costs one query. For a bigger `state.json`, run this step *without* a body first (it still creates the table), then hand the ids to the CLI — it has no per-invocation limit, and `--remote` is what makes it touch the deployed database instead of your local dev state:
+   One call imports at most **30** chat ids. A Worker invocation gets 50 subrequests on the Free plan, and a subrequest is a fetch *or* a D1 call — so the budget covers the whole call, not just the import: 18 go to the Bot API (getMe, the webhook, the default rights, and five calls per language) and one to the table DDL, leaving 30. Over that, the later steps fail too, `setWebhook` included, and the webhook never gets set at all. For a bigger `state.json`, run this step *without* a body first (it still creates the table), then hand the ids to the CLI — it has no per-invocation limit, and `--remote` is what makes it touch the deployed database instead of your local dev state:
 
    ```bash
    jq -r '.enabled_chats[] | "INSERT OR IGNORE INTO enabled_chats (chat_id) VALUES (\(.));"' \

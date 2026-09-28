@@ -10,13 +10,22 @@ import { ALL, resolve } from "./i18n";
 import type { Lang } from "./i18n";
 import type { UnpinBot } from "./bot";
 
-/** Ceiling on one state import. D1 allows 1000 queries per Worker
- * invocation on the Workers Paid plan and 50 on the Free one (the plan
- * the README recommends), and every imported id costs one query — so this
- * ceiling is what keeps a single /register call inside the free-plan
- * limit, with the table DDL as headroom. Anything larger goes in through
- * `wrangler d1 execute --file`, which does not run inside an invocation. */
-const MAX_IMPORT = 40;
+/** Ceiling on one state import. Every imported id costs one D1 query, and
+ * a Worker invocation gets 50 subrequests on the Free plan (1000 on
+ * Paid) out of which D1 and outbound fetch draw from the same pool — a
+ * subrequest is a fetch or a call to D1, per the platform's own limits.
+ *
+ * So the whole /register call has to fit, not just its import: 18 go to
+ * the Bot API (getMe, setWebhook, the default rights, and five calls for
+ * each of the three language targets — 17 once the isolate is warm and
+ * getMe is cached) and one to the table DDL, which leaves 30 with a
+ * margin. Anything larger goes in through `wrangler d1 execute --file`,
+ * which does not run inside an invocation.
+ *
+ * ponytail: Cloudflare does not document whether a `db.batch` of N
+ * statements spends 1 subrequest or N, and this ceiling is safe either
+ * way. Re-derive it from the limits pages before raising it. */
+const MAX_IMPORT = 30;
 
 export async function handleRegister(
   request: Request,

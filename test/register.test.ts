@@ -205,17 +205,18 @@ describe("POST /register", () => {
   });
 
   it("refuses an import larger than one invocation can query", async () => {
-    // 41 ids already blow the free plan's 50-queries-per-invocation budget
-    // once the table DDL is counted, which is what the cap is there for.
+    // 31 ids plus the DDL plus the 18 Bot API calls a cold /register makes
+    // is over the free plan's 50 subrequests, and the import runs first —
+    // so setWebhook would fail too, which is what the cap exists to stop.
     const fake = fakeD1();
     const { status, report } = await register("", {
       body: JSON.stringify({
-        enabled_chats: Array.from({ length: 41 }, (_, i) => -i),
+        enabled_chats: Array.from({ length: 31 }, (_, i) => -i),
       }),
       fake,
     });
     expect(status).toBe(502);
-    expect(String(report.storage)).toMatch(/over the 40 limit/);
+    expect(String(report.storage)).toMatch(/over the 30 limit/);
     expect(fake.rows.size).toBe(0);
   });
 
