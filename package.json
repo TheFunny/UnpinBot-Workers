@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Telegram bot that automatically unpins auto-forwarded channel posts in connected discussion groups, running on Cloudflare Workers",
-  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
