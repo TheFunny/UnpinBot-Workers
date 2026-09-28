@@ -16,5 +16,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # worker-configuration.d.ts is generated, but its Env block only
+      # carries the three secrets when their names are visible to wrangler
+      # — locally they come from .dev.vars, so a bare checkout regenerates
+      # a *different* file and the diff below would be meaningless. Give it
+      # the same names with placeholder values, then require the committed
+      # file to match: a binding added to wrangler.jsonc without a regen
+      # fails here rather than at the next deploy.
+      - name: Check the generated worker types are current
+        run: |
+          printf 'TELOXIDE_TOKEN=x\nWEBHOOK_SECRET=x\nADMIN_KEY=x\n' > .dev.vars
+          npx wrangler types
+          git diff --exit-code worker-configuration.d.ts
       - run: npm test
       - run: npm audit --audit-level=high
