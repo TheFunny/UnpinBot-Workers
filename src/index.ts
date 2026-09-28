@@ -7,10 +7,10 @@ import type { UnpinBot } from "./bot";
 import { handleRegister } from "./register";
 import { keysMatch } from "./secret";
 
-// One bot per isolate, cached on the token it is built from. Nothing
+// One bot per isolate, cached on the token it is built from. Bindings and
+// secrets are immutable per version, so the token is the whole key. Nothing
 // promises the same `env` object across requests, and a miss here costs a
-// getMe round trip on every single update — including the bot's own init
-// cache, which goes with it.
+// getMe round trip on every update — including the bot's own init cache.
 let boot: { token: string; unpin: UnpinBot } | null = null;
 function bootFor(env: Env): UnpinBot {
   if (boot === null || boot.token !== env.TELOXIDE_TOKEN) {
