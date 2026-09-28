@@ -16,6 +16,18 @@ export async function handleRegister(
   env: Env,
   unpin: UnpinBot,
 ): Promise<Response> {
+  if (env.ADMIN_KEY === undefined) {
+    // Reported as a setup error rather than a bare 403: keysMatch fails
+    // closed, so an unset key would otherwise be indistinguishable from a
+    // wrong one — and the request could never succeed.
+    return Response.json(
+      {
+        ok: false,
+        failures: ["ADMIN_KEY is not set; run: wrangler secret put ADMIN_KEY"],
+      },
+      { status: 500 },
+    );
+  }
   const key = request.headers.get("X-Register-Key") ?? "";
   if (!keysMatch(key, env.ADMIN_KEY)) {
     return new Response("Forbidden", { status: 403 });

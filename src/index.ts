@@ -29,6 +29,14 @@ export default {
       const given =
         request.headers.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
       if (!keysMatch(given, env.WEBHOOK_SECRET)) {
+        if (env.WEBHOOK_SECRET === undefined) {
+          // keysMatch fails closed, so a 401 here with no header means the
+          // secret was never set — say so instead of leaving an
+          // unauthenticated loop that looks like a Telegram problem.
+          console.error(
+            "WEBHOOK_SECRET is not set; run: wrangler secret put WEBHOOK_SECRET",
+          );
+        }
         return new Response("Unauthorized", { status: 401 });
       }
       // getMe must have succeeded before any handler runs (command matching
